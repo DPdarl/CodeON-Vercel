@@ -1,10 +1,11 @@
+// app/components/dashboardmodule/MobileNavBar.tsx
 import {
   MoreHorizontal,
   Settings,
   LogOut,
   Info,
   UserCog,
-  Menu,
+  // Menu, // Unused import removed
 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import {
@@ -17,6 +18,7 @@ import {
 } from "~/components/ui/dialog";
 import { Button } from "~/components/ui/button";
 import { UserData } from "~/contexts/AuthContext";
+import { useQuestNotifications } from "~/hooks/useQuestNotifications";
 import {
   AdminIcon,
   ControllerIcon,
@@ -24,7 +26,7 @@ import {
   FlameIcon,
   HomeIcon,
   IconStore,
-  ProfileIcon,
+  // ProfileIcon, // ✅ REMOVED: No longer needed here
   ReportIcon,
   ScrollQuestIcon,
   TogaIcon,
@@ -48,7 +50,10 @@ export function MobileNavBar({
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  // --- CONFIGURATION (Exact copy from Sidebar.tsx) ---
+  // Notification Hook
+  const { hasUnclaimedQuests } = useQuestNotifications();
+
+  // --- CONFIGURATION ---
   const ALL_ROLES = ["superadmin", "admin", "instructor", "user"];
   const STAFF_ROLES = ["superadmin", "admin", "instructor"];
   const ADMIN_ROLES = ["superadmin", "admin"];
@@ -91,14 +96,14 @@ export function MobileNavBar({
       roles: STAFF_ROLES,
     },
 
-    // User Tabs
-    { id: "profile", label: "Profile", icon: ProfileIcon, roles: ALL_ROLES },
+    // ✅ REMOVED: Profile Tab
+    // { id: "profile", label: "Profile", icon: ProfileIcon, roles: ALL_ROLES },
   ];
 
   // 1. Filter based on Role
   const userRole = user?.role || "user";
   const navigationItems = allNavItems.filter((item) =>
-    item.roles.includes(userRole)
+    item.roles.includes(userRole),
   );
 
   // 2. Split Items: First 4 go on Bar, Rest go in Menu
@@ -153,13 +158,19 @@ export function MobileNavBar({
               >
                 <div
                   className={cn(
-                    "p-2 rounded-xl transition-all duration-200",
+                    "p-2 rounded-xl transition-all duration-200 relative",
                     isActive
                       ? "bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400 border-2 border-indigo-200 dark:border-indigo-800"
-                      : "text-gray-400 dark:text-gray-500 border-2 border-transparent hover:bg-gray-50 dark:hover:bg-gray-800"
+                      : "text-gray-400 dark:text-gray-500 border-2 border-transparent hover:bg-gray-50 dark:hover:bg-gray-800",
                   )}
                 >
                   <Icon className={cn("w-6 h-6", isActive && "fill-current")} />
+                  {item.id === "quest" && hasUnclaimedQuests && (
+                    <span className="absolute -top-0.5 -right-0.5 flex h-3 w-3 z-10">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500 border-2 border-white dark:border-gray-900"></span>
+                    </span>
+                  )}
                 </div>
               </button>
             );
@@ -176,7 +187,7 @@ export function MobileNavBar({
                   "p-2 rounded-xl transition-all duration-200",
                   isMenuOpen
                     ? "bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400 border-2 border-indigo-200 dark:border-indigo-800"
-                    : "text-gray-400 dark:text-gray-500 border-2 border-transparent hover:bg-gray-50 dark:hover:bg-gray-800"
+                    : "text-gray-400 dark:text-gray-500 border-2 border-transparent hover:bg-gray-50 dark:hover:bg-gray-800",
                 )}
               >
                 <MoreHorizontal className="w-6 h-6" />
@@ -187,7 +198,7 @@ export function MobileNavBar({
             {isMenuOpen && (
               <div className="absolute bottom-full right-0 mb-4 w-56 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom-5 fade-in duration-200">
                 <div className="p-2 space-y-1 max-h-[60vh] overflow-y-auto">
-                  {/* Remaining Navigation Items (Store, Profile, Admin) */}
+                  {/* Remaining Navigation Items (Store, Admin, etc.) */}
                   {menuItems.map((item) => {
                     const Icon = item.icon;
                     const isActive = activeTab === item.id;
@@ -199,7 +210,7 @@ export function MobileNavBar({
                           "w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
                           isActive
                             ? "bg-indigo-50 text-indigo-600 dark:bg-indigo-900/20 dark:text-indigo-400"
-                            : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                            : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700",
                         )}
                       >
                         <Icon className="w-5 h-5" />
@@ -222,7 +233,7 @@ export function MobileNavBar({
                           "w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
                           isLogout
                             ? "text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20"
-                            : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                            : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700",
                         )}
                       >
                         <Icon className="w-5 h-5" />

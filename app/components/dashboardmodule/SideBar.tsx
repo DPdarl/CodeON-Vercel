@@ -1,11 +1,5 @@
 // app/components/dashboardmodule/SideBar.tsx
-import {
-  MoreHorizontal,
-  Settings,
-  LogOut,
-  Info,
-  UserCog, // Instructor Management
-} from "lucide-react";
+import { MoreHorizontal, Settings, LogOut, Info, UserCog } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import {
   Dialog,
@@ -15,8 +9,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "~/components/ui/dialog";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "~/components/ui/tooltip";
+import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "~/components/ui/button";
 import { UserData } from "~/contexts/AuthContext";
+import { useQuestNotifications } from "~/hooks/useQuestNotifications";
 import {
   AdminIcon,
   CoinIcon,
@@ -25,8 +27,7 @@ import {
   FlameIcon,
   HomeIcon,
   IconStore,
-  // InstructorIcon, // Use UserCog import instead if missing
-  ProfileIcon,
+  // ProfileIcon, // ✅ REMOVED: No longer needed here
   ReportIcon,
   ScrollQuestIcon,
   TogaIcon,
@@ -50,6 +51,9 @@ export function Sidebar({
   const [isMoreDropdownOpen, setIsMoreDropdownOpen] = useState(false);
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Notification Hook
+  const { hasUnclaimedQuests } = useQuestNotifications();
 
   // --- NAVIGATION CONFIGURATION ---
   const ALL_ROLES = ["superadmin", "admin", "instructor", "user"];
@@ -102,8 +106,9 @@ export function Sidebar({
       roles: STAFF_ROLES,
     },
 
-    // Standard User Tabs
-    { id: "profile", label: "Profile", icon: ProfileIcon, roles: ALL_ROLES },
+    // ✅ REMOVED: Profile Tab from here
+    // { id: "profile", label: "Profile", icon: ProfileIcon, roles: ALL_ROLES },
+
     {
       id: "more",
       label: "More",
@@ -116,7 +121,7 @@ export function Sidebar({
   // Filter items based on user role
   const userRole = user?.role || "user";
   const navigationItems = allNavItems.filter((item) =>
-    item.roles.includes(userRole)
+    item.roles.includes(userRole),
   );
 
   const moreOptions = [
@@ -161,29 +166,41 @@ export function Sidebar({
 
   return (
     <>
-      {/* UPDATED CLASS: 
-          Removed 'w-64'/'w-24' fixed widths. 
-          Added 'w-full' so it fills the parent container (Desktop Sidebar or Mobile Drawer).
-      */}
       <div
         className={`bg-gray-150 dark:bg-gray-900 border-r shadow-sm flex flex-col h-full w-full transition-all duration-300`}
       >
         {/* Logo Section */}
-        <div className="px-3 py-6 border-b">
+        <div
+          className={`h-[88px] flex items-center border-b ${
+            collapsed ? "px-2" : "px-3"
+          }`}
+        >
           <div
-            className={`flex items-center ${collapsed ? "justify-center" : ""}`}
+            className={`flex items-center w-full ${
+              collapsed ? "justify-center" : ""
+            }`}
           >
-            <CoinIcon className="h-8 w-8 mx-3 flex-shrink-0" />
-            {!collapsed && (
-              <div className="flex flex-col overflow-hidden">
-                <h1 className="text-xl font-bold leading-tight font-pixelify dark:text-white truncate">
-                  CodeON
-                </h1>
-                <span className="text-xs text-muted-foreground leading-tight capitalize truncate">
-                  {userRole} View
-                </span>
-              </div>
-            )}
+            <CoinIcon
+              className={`h-8 w-8 flex-shrink-0 ${collapsed ? "" : "mx-3"}`}
+            />
+            <AnimatePresence>
+              {!collapsed && (
+                <motion.div
+                  initial={{ opacity: 0, width: 0 }}
+                  animate={{ opacity: 1, width: "auto" }}
+                  exit={{ opacity: 0, width: 0 }}
+                  transition={{ duration: 0.3, ease: "easeInOut" }}
+                  className="flex flex-col overflow-hidden whitespace-nowrap"
+                >
+                  <h1 className="text-xl font-bold leading-tight font-pixelify dark:text-white truncate">
+                    CodeON
+                  </h1>
+                  <span className="text-xs text-muted-foreground leading-tight capitalize truncate">
+                    {userRole} View
+                  </span>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </div>
 
@@ -194,39 +211,73 @@ export function Sidebar({
               const Icon = item.icon;
               const isMoreItem = item.id === "more";
 
+              // Define the button content separately for cleaner Tooltip usage
+              const NavButton = (
+                <button
+                  className={`w-full flex items-center rounded-lg text-left transition-colors group relative
+                    ${
+                      activeTab === item.id
+                        ? "bg-primary/10 text-primary font-medium"
+                        : "text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+                    }
+                    ${
+                      collapsed
+                        ? "justify-center p-2 mb-2"
+                        : "space-x-3 px-3 py-3"
+                    }
+                    ${
+                      isMoreItem && isMoreDropdownOpen
+                        ? "bg-primary/10 text-primary"
+                        : ""
+                    }
+                  `}
+                  onClick={
+                    isMoreItem ? handleMoreClick : () => onTabChange(item.id)
+                  }
+                >
+                  <div className="relative">
+                    <Icon className="h-6 w-6 flex-shrink-0" />
+                    {item.id === "quest" && hasUnclaimedQuests && (
+                      <span className="absolute -top-0.5 -right-0.5 flex h-3 w-3 z-10">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500 border-2 border-white dark:border-gray-900"></span>
+                      </span>
+                    )}
+                  </div>
+                  <AnimatePresence>
+                    {!collapsed && (
+                      <motion.span
+                        initial={{ opacity: 0, width: 0 }}
+                        animate={{ opacity: 1, width: "auto" }}
+                        exit={{ opacity: 0, width: 0 }}
+                        transition={{ duration: 0.2, ease: "easeInOut" }}
+                        className="truncate overflow-hidden whitespace-nowrap ml-3"
+                      >
+                        {item.label}
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
+                </button>
+              );
+
               return (
                 <div
                   key={item.id}
                   className="relative"
                   ref={isMoreItem ? dropdownRef : null}
                 >
-                  <button
-                    className={`w-full flex items-center space-x-3 px-3 py-3 rounded-lg text-left transition-colors group ${
-                      activeTab === item.id
-                        ? "bg-primary/10 text-primary font-medium"
-                        : "text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
-                    } ${collapsed ? "justify-center" : ""} ${
-                      isMoreItem && isMoreDropdownOpen
-                        ? "bg-primary/10 text-primary"
-                        : ""
-                    }`}
-                    onClick={
-                      isMoreItem ? handleMoreClick : () => onTabChange(item.id)
-                    }
-                    title={collapsed ? item.label : ""}
-                  >
-                    <Icon className="h-6 w-6 flex-shrink-0" />
-                    {!collapsed && (
-                      <span className="truncate">{item.label}</span>
-                    )}
-
-                    {/* Tooltip for collapsed state */}
-                    {collapsed && (
-                      <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-sm rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-50 pointer-events-none">
-                        {item.label}
-                      </div>
-                    )}
-                  </button>
+                  {collapsed ? (
+                    <TooltipProvider delayDuration={0}>
+                      <Tooltip>
+                        <TooltipTrigger asChild>{NavButton}</TooltipTrigger>
+                        <TooltipContent side="right" className="ml-2 font-bold">
+                          {item.label}
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  ) : (
+                    NavButton
+                  )}
 
                   {/* More Dropdown */}
                   {isMoreItem && isMoreDropdownOpen && (

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Outlet, useNavigate, useLocation } from "@remix-run/react";
+import { motion } from "framer-motion";
 import { useAuth } from "~/contexts/AuthContext";
 import { Sidebar } from "~/components/dashboardmodule/SideBar";
 import { DashboardHeader } from "~/components/dashboardmodule/DashboardHeader";
@@ -13,10 +14,10 @@ export default function AppLayout() {
   const location = useLocation();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
-  // ✅ NEW: State to track if we are on Mobile
+  // ✅ State to track if we are on Mobile
   const [isMobile, setIsMobile] = useState(false);
 
-  // --- 1. DETECT SCREEN SIZE (The Function You Asked For) ---
+  // --- 1. DETECT SCREEN SIZE ---
   useEffect(() => {
     const checkScreenSize = () => {
       // 768px is the standard Tailwind 'md' breakpoint
@@ -26,7 +27,7 @@ export default function AppLayout() {
     // Run immediately on load
     checkScreenSize();
 
-    // Listen for resize events (in case user resizes browser)
+    // Listen for resize events
     window.addEventListener("resize", checkScreenSize);
     return () => window.removeEventListener("resize", checkScreenSize);
   }, []);
@@ -36,24 +37,27 @@ export default function AppLayout() {
     location.pathname.startsWith("/play/") && location.pathname !== "/play";
 
   // --- 3. DYNAMIC PADDING CALCULATOR ---
-  // This ensures PC layout is completely untouched by mobile styles
   const getContentPadding = () => {
     if (isActivityMode) return "pb-0"; // Full screen for games
     if (isMobile) return "pb-16"; // Big padding for Mobile Nav
     return "pb-0"; // Standard padding for PC
   };
 
-  // --- 4. TAB MATCHING ---
+  // --- 4. TAB MATCHING (UPDATED) ---
   const getActiveTabFromPath = (path: string) => {
     const currentPath =
       path.endsWith("/") && path.length > 1 ? path.slice(0, -1) : path;
 
     if (currentPath.startsWith("/play")) return "play";
     if (currentPath.startsWith("/leaderboard")) return "leaderboard";
-    if (currentPath.startsWith("/quests")) return "quests";
+    if (currentPath.startsWith("/quests")) return "quest";
     if (currentPath.startsWith("/streak")) return "streak";
     if (currentPath.startsWith("/store")) return "store";
     if (currentPath.startsWith("/profile")) return "profile";
+
+    // ✅ ADDED: Settings and About path detection
+    if (currentPath.startsWith("/settings")) return "settings";
+    if (currentPath.startsWith("/about")) return "about";
 
     if (currentPath.startsWith("/student-management"))
       return "student-management";
@@ -67,7 +71,7 @@ export default function AppLayout() {
 
   const activeTab = getActiveTabFromPath(location.pathname);
 
-  // --- 5. NAVIGATION HANDLER ---
+  // --- 5. NAVIGATION HANDLER (UPDATED) ---
   const handleTabChange = (tabId: string) => {
     switch (tabId) {
       case "home":
@@ -91,6 +95,14 @@ export default function AppLayout() {
       case "profile":
         navigate("/profile");
         break;
+      // ✅ ADDED: Navigation for Settings and About
+      case "settings":
+        navigate("/settings");
+        break;
+      case "about":
+        navigate("/about");
+        break;
+      // Management routes
       case "student-management":
         navigate("/student-management");
         break;
@@ -144,10 +156,11 @@ export default function AppLayout() {
     <div className="flex h-screen w-full overflow-hidden bg-background text-foreground font-sans">
       {/* DESKTOP SIDEBAR */}
       {!isActivityMode && (
-        <aside
-          className={`hidden md:flex flex-col fixed inset-y-0 left-0 z-50 border-r bg-card/50 backdrop-blur-xl transition-[width] duration-300 ${
-            sidebarCollapsed ? "w-24" : "w-64"
-          }`}
+        <motion.aside
+          initial={false}
+          animate={{ width: sidebarCollapsed ? 88 : 256 }}
+          transition={{ duration: 0.3, ease: "easeInOut" }}
+          className="hidden md:flex flex-col fixed inset-y-0 left-0 z-50 border-r bg-card/50 backdrop-blur-xl overflow-hidden"
         >
           <Sidebar
             user={user}
@@ -156,15 +169,18 @@ export default function AppLayout() {
             onLogout={handleLogout}
             collapsed={sidebarCollapsed}
           />
-        </aside>
+        </motion.aside>
       )}
 
       {/* MAIN CONTENT AREA */}
-      <main
-        className={`flex-1 flex flex-col h-full relative overflow-hidden transition-[padding] duration-300 
-        ${
-          isActivityMode ? "pl-0" : sidebarCollapsed ? "md:pl-24" : "md:pl-64"
-        }`}
+      <motion.main
+        initial={false}
+        animate={{
+          paddingLeft:
+            isActivityMode || isMobile ? 0 : sidebarCollapsed ? 88 : 256,
+        }}
+        transition={{ duration: 0.3, ease: "easeInOut" }}
+        className="flex-1 flex flex-col h-full relative overflow-hidden"
       >
         {!isActivityMode && (
           <>
@@ -175,6 +191,8 @@ export default function AppLayout() {
                 onToggleSidebar={toggleSidebar}
                 onSwitchTheme={handleSwitchTheme}
                 onLogout={handleLogout}
+                // Pass profile handler
+                onProfileClick={() => handleTabChange("profile")}
                 stats={{
                   streaks: user.streaks || 0,
                   coins: user.coins || 0,
@@ -193,18 +211,20 @@ export default function AppLayout() {
                 }}
                 onSwitchTheme={handleSwitchTheme}
                 onLogout={handleLogout}
+                // Pass profile handler to mobile header too
+                onProfileClick={() => handleTabChange("profile")}
               />
             </div>
           </>
         )}
 
-        {/* ✅ CONTENT SCROLL AREA WITH DYNAMIC PADDING */}
+        {/* CONTENT SCROLL AREA */}
         <div
           className={`flex-1 overflow-y-auto custom-scrollbar  ${getContentPadding()}`}
         >
           <Outlet />
         </div>
-      </main>
+      </motion.main>
 
       {/* MOBILE BOTTOM NAV */}
       {!isActivityMode && (

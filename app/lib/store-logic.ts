@@ -49,7 +49,7 @@ export async function processPurchase(
   userId: string,
   item: ShopItem,
   currentUserData: UserData,
-  quantity: number = 1
+  quantity: number = 1,
 ) {
   const { coins, hearts, streakFreezes, hints } = currentUserData;
   const totalCost = item.cost * quantity;
@@ -64,6 +64,19 @@ export async function processPurchase(
 
   const updates: any = {
     coins: (coins || 0) - totalCost,
+  };
+
+  // --- FETCH & UPDATE STATS (For "Spender" Quest) ---
+  const { data: dbUser } = await supabase
+    .from("users")
+    .select("stats")
+    .eq("id", userId)
+    .single();
+
+  const currentStats = dbUser?.stats || {};
+  updates.stats = {
+    ...currentStats,
+    items_bought: (currentStats.items_bought || 0) + quantity,
   };
 
   // 2. Item Specific Logic

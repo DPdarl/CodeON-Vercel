@@ -26,6 +26,13 @@ import {
 import { Badge } from "~/components/ui/badge";
 import { exportToCSV } from "~/utils/exportHelper";
 import { toast } from "sonner";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "~/components/ui/select";
 
 interface Match {
   id: string;
@@ -42,6 +49,7 @@ export function MatchHistoryTab() {
   const { user } = useAuth(); // Get current user
   const [matches, setMatches] = useState<Match[]>([]);
   const [loading, setLoading] = useState(true);
+  const [filterMode, setFilterMode] = useState<string>("all");
 
   // Helper to format seconds
   const formatDuration = (seconds: number | null) => {
@@ -57,7 +65,7 @@ export function MatchHistoryTab() {
 
     // 1. Try to find THIS user's result specifically
     const myResult = match.results.find(
-      (r: any) => r.name === user?.displayName
+      (r: any) => r.name === user?.displayName,
     );
     if (myResult && myResult.accuracy) return myResult.accuracy;
 
@@ -81,7 +89,7 @@ export function MatchHistoryTab() {
         // --- RESTRICTION LOGIC ---
         // If user is NOT an admin or instructor, restrict to their own ID.
         const isPrivileged = ["superadmin", "admin", "instructor"].includes(
-          user.role || ""
+          user.role || "",
         );
 
         if (!isPrivileged) {
@@ -106,6 +114,20 @@ export function MatchHistoryTab() {
     fetchHistory();
   }, [user]);
 
+  // Define static game modes based on requirements
+  const PREDEFINED_MODES = [
+    { label: "Adventure", value: "adventure" },
+    { label: "Multiplayer", value: "multiplayer" },
+    { label: "Challenges", value: "challenge" },
+  ];
+
+  const filteredMatches = matches.filter((match) => {
+    if (filterMode === "all") return true;
+    // Flexible matching: check if the match mode string contains the filter keyword
+    // e.g. "C# Adventures" -> includes "adventure"
+    return match.mode.toLowerCase().includes(filterMode);
+  });
+
   const handleExportMatch = (match: Match) => {
     if (!match.results || match.results.length === 0) {
       toast.error("No detailed results available for this match.");
@@ -124,7 +146,7 @@ export function MatchHistoryTab() {
 
     exportToCSV(
       exportData,
-      `Match_${match.mode.replace(/[\s:]+/g, "_")}_${match.id.slice(0, 4)}`
+      `Match_${match.mode.replace(/[\s:]+/g, "_")}_${match.id.slice(0, 4)}`,
     );
     toast.success(`Exported results for ${match.mode}`);
   };
@@ -132,10 +154,29 @@ export function MatchHistoryTab() {
   return (
     <Card className="border-gray-200 dark:border-gray-800 flex flex-col h-full">
       <CardHeader>
-        <CardTitle>Match History</CardTitle>
-        <CardDescription>
-          Review your Multiplayer battles and Adventure progress.
-        </CardDescription>
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <CardTitle>Match History</CardTitle>
+            <CardDescription>
+              Review your Multiplayer battles and Adventure progress.
+            </CardDescription>
+          </div>
+          <div className="w-full md:w-[200px]">
+            <Select value={filterMode} onValueChange={setFilterMode}>
+              <SelectTrigger>
+                <SelectValue placeholder="Filter by Mode" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Modes</SelectItem>
+                {PREDEFINED_MODES.map((mode) => (
+                  <SelectItem key={mode.value} value={mode.value}>
+                    {mode.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
       </CardHeader>
 
       <CardContent className="flex-1 overflow-hidden p-0">
@@ -172,7 +213,7 @@ export function MatchHistoryTab() {
                       <p className="text-gray-500 mt-2">Loading matches...</p>
                     </td>
                   </tr>
-                ) : matches.length === 0 ? (
+                ) : filteredMatches.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="p-12 text-center text-gray-500">
                       <div className="flex flex-col items-center gap-2">
@@ -182,7 +223,7 @@ export function MatchHistoryTab() {
                     </td>
                   </tr>
                 ) : (
-                  matches.map((match) => {
+                  filteredMatches.map((match) => {
                     const isAdventure = match.mode
                       .toLowerCase()
                       .includes("adventure");

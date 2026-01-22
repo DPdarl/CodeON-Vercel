@@ -16,11 +16,12 @@ import { supabase } from "~/lib/supabase";
 import { Challenge } from "~/types/challenge.types";
 import { SelectionCarousel } from "./SelectionCarousel";
 import { calculateProgress } from "~/lib/leveling-system";
-import { TrophyIcon, FlameIcon, CrownIcon, StarIcon } from "../ui/Icons";
+import { TrophyIcon, CrownIcon, StarIcon } from "../ui/Icons"; // Removed FlameIcon
 
 // --- NEW IMPORTS FOR GAME LOGIC ---
 import { useGameProgress } from "~/hooks/useGameProgress";
 import { LevelUpModal } from "./LevelUpModal";
+import { HomeSkeleton } from "./HomeSkeleton"; // ADDED
 
 interface HomeTabProps {
   onTabChange: (tab: string) => void;
@@ -34,8 +35,7 @@ export function HomeTab({ onTabChange, isActive = true }: HomeTabProps) {
   const [challenges, setChallenges] = useState<Challenge[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // ✅ FIX: Use a Ref to track if we have fetched data for this 'activation'
-  // This prevents the infinite loop caused by user updates triggering re-renders
+  // Ref to track if we have fetched data for this 'activation'
   const hasFetchedRef = useRef(false);
 
   // --- DYNAMIC PROGRESS STATE ---
@@ -48,8 +48,6 @@ export function HomeTab({ onTabChange, isActive = true }: HomeTabProps) {
   const { grantXP, levelUpModal, isProcessing } = useGameProgress();
 
   // --- LOAD CURRENT CHAPTER LOGIC ---
-  // Memoized based on user.completedChapters ID array, not the whole user object
-  // to prevent unnecessary re-calculations.
   const loadCurrentChapter = useCallback(async () => {
     if (!user) return;
 
@@ -64,7 +62,7 @@ export function HomeTab({ onTabChange, isActive = true }: HomeTabProps) {
       if (lessonsData) {
         const completedIds = user?.completedChapters || [];
         const nextLesson = lessonsData.find(
-          (l) => !completedIds.includes(l.id)
+          (l) => !completedIds.includes(l.id),
         );
 
         if (nextLesson) {
@@ -90,7 +88,7 @@ export function HomeTab({ onTabChange, isActive = true }: HomeTabProps) {
     } catch (err) {
       console.error("Failed to calculate current chapter:", err);
     }
-  }, [user?.completedChapters]); // ✅ Only depend on the array, not the full user object
+  }, [user?.completedChapters]);
 
   // --- DATA FETCHING FUNCTION ---
   const fetchData = useCallback(async () => {
@@ -104,13 +102,12 @@ export function HomeTab({ onTabChange, isActive = true }: HomeTabProps) {
       if (challengeError) throw challengeError;
       if (challengeData) {
         const sorted = (challengeData as Challenge[]).sort(
-          (a, b) => a.page - b.page
+          (a, b) => a.page - b.page,
         );
         setChallenges(sorted);
       }
 
       // 2. Refresh User Data (Silent update)
-      // This updates the Context, but our Ref prevents the Loop
       if (refreshUser) await refreshUser();
 
       // 3. Recalculate chapter
@@ -122,31 +119,34 @@ export function HomeTab({ onTabChange, isActive = true }: HomeTabProps) {
     }
   }, [refreshUser, loadCurrentChapter]);
 
-  // --- ✅ FIXED AUTO REFRESH EFFECT ---
+  // --- AUTO REFRESH EFFECT ---
   useEffect(() => {
     if (isActive) {
-      // Only fetch if we haven't done so for this activation
       if (!hasFetchedRef.current) {
         fetchData();
         hasFetchedRef.current = true;
       }
     } else {
-      // Reset the flag when we leave the tab, so it refreshes next time we click it
       hasFetchedRef.current = false;
     }
   }, [isActive, fetchData]);
 
-  // 3. Calculate Stats
+  // --- CALCULATE STATS ---
   const progressData = calculateProgress(user?.xp || 0);
+
+  // Use explicit 'any' cast here if 'completedChallenges' is not yet in your UserData interface
+  // This ensures the UI works now (showing 0) and works later when you add the DB field.
+  const completedChallengesCount =
+    (user as any)?.completedChallenges?.length || 0;
 
   const stats = {
     level: progressData.currentLevel,
     currentBarXP: progressData.currentXP,
     maxBarXP: progressData.xpForNextLevel,
-    streak: user?.streaks || 0,
+    challengesDone: completedChallengesCount, // New Metric
     trophies: user?.trophies || 0,
     league: user?.league || "Novice",
-    starsEarned: user?.completedChapters?.length || 0,
+    chaptersDone: user?.completedChapters?.length || 0, // Adventure Metric
   };
 
   const handleSelectChallenge = (challenge: Challenge) => {
@@ -160,6 +160,14 @@ export function HomeTab({ onTabChange, isActive = true }: HomeTabProps) {
 
   const isAdminOrSuper = user?.role === "admin" || user?.role === "superadmin";
 
+  // --- BUTTON TEXT LOGIC ---
+  let adventureBtnText = "Start Journey";
+  if (adventureProgress.isCompleted) {
+    adventureBtnText = "Replay Levels";
+  } else if (adventureProgress.chapter > 1) {
+    adventureBtnText = "Resume Journey";
+  }
+
   return (
     <div className="max-w-6xl mx-auto space-y-8 pb-12">
       <LevelUpModal
@@ -168,7 +176,6 @@ export function HomeTab({ onTabChange, isActive = true }: HomeTabProps) {
         rewards={levelUpModal.rewards}
         onClose={() => {
           levelUpModal.close();
-          // Optional: force refresh after level up
           hasFetchedRef.current = false;
           fetchData();
         }}
@@ -246,15 +253,26 @@ export function HomeTab({ onTabChange, isActive = true }: HomeTabProps) {
       </motion.div>
 
       {/* --- Stats Row --- */}
+
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {/* 1. CHAPTERS DONE (Adventure Mode) */}
         <StatCard
-          icon={FlameIcon}
-          label="Day Streak"
-          value={stats.streak.toString()}
-          color="text-orange-500"
-          bgColor="bg-orange-50 dark:bg-orange-950/30"
+          icon={StarIcon}
+          label="Chapters Done"
+          value={stats.chaptersDone.toString()}
+          color="text-blue-500"
+          bgColor="bg-blue-50 dark:bg-blue-950/30"
+        />
+        {/* 2. COMPLETED CHALLENGES (Replaces Streak) */}
+        <StatCard
+          icon={Code2}
+          label="Completed Challenges"
+          value={stats.challengesDone.toString()}
+          color="text-green-500"
+          bgColor="bg-green-50 dark:bg-green-950/30"
           iconClassName="h-6 w-5"
         />
+        {/* 3. TOTAL TROPHIES */}
         <StatCard
           icon={TrophyIcon}
           label="Total Trophies"
@@ -262,19 +280,13 @@ export function HomeTab({ onTabChange, isActive = true }: HomeTabProps) {
           color="text-yellow-500"
           bgColor="bg-yellow-50 dark:bg-yellow-950/30"
         />
+        {/* 4. CURRENT LEAGUE */}
         <StatCard
           icon={CrownIcon}
           label="Current League"
           value={stats.league}
           color="text-purple-500"
           bgColor="bg-purple-50 dark:bg-purple-950/30"
-        />
-        <StatCard
-          icon={StarIcon}
-          label="Chapters Done"
-          value={stats.starsEarned.toString()}
-          color="text-blue-500"
-          bgColor="bg-blue-50 dark:bg-blue-950/30"
         />
       </div>
 
@@ -330,7 +342,8 @@ export function HomeTab({ onTabChange, isActive = true }: HomeTabProps) {
             onClick={() => navigate("/play/adventure")}
             className="w-full md:w-auto h-12 px-8 text-base font-bold bg-orange-600 hover:bg-orange-700 text-white rounded-xl shadow-lg shadow-orange-500/20 transition-transform active:scale-95"
           >
-            {adventureProgress.isCompleted ? "Replay Levels" : "Resume Journey"}{" "}
+            {/* ✅ UPDATED BUTTON LOGIC */}
+            {adventureBtnText}
             <ArrowRight className="w-5 h-5 ml-2" />
           </Button>
         </div>
@@ -360,13 +373,13 @@ export function HomeTab({ onTabChange, isActive = true }: HomeTabProps) {
 
           <div className="relative z-10">
             {loading ? (
-              <div className="flex justify-center py-24">
-                <Loader2 className="h-10 w-10 animate-spin text-indigo-500" />
-              </div>
+              <HomeSkeleton />
             ) : challenges.length > 0 ? (
               <SelectionCarousel
                 challenges={challenges}
                 onSelectChallenge={handleSelectChallenge}
+                // NOTE: If you are using 'completedChapters' for this logic currently, keep it.
+                // If you have a separate array for challenges, switch this to: user?.completedChallenges || []
                 completedChallenges={user?.completedChapters || []}
               />
             ) : (

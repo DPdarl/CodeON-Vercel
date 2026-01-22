@@ -11,7 +11,6 @@ import {
   DialogTitle,
 } from "~/components/ui/dialog";
 import {
-  Award,
   Crown,
   Calendar,
   Info,
@@ -19,6 +18,9 @@ import {
   ChevronDown,
   Gamepad2,
   Clock,
+  Eye,
+  EyeOff,
+  Award,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { AvatarDisplay } from "./AvatarDisplay";
@@ -62,7 +64,10 @@ const GAMEMODES = [
   { id: "ADVENTURE", label: "Adventure", icon: Clock },
 ];
 
+const TOTAL_CHAPTERS = 10;
+
 interface LeaderboardUser {
+  isAdventureCompleted?: boolean;
   id: string;
   displayName: string | null;
   photoURL: string | null;
@@ -78,6 +83,8 @@ interface LeaderboardUser {
   stars?: number;
   // REFACTORED: Now using totalRuntime from DB
   totalRuntime?: number;
+  role?: string;
+  completedChapters?: any[];
 }
 
 const LEADERBOARD_CACHE_KEY = "codeon_leaderboard_cache";
@@ -94,10 +101,12 @@ const formatTime = (seconds: number) => {
 export function LeaderboardTab() {
   const { user, updateProfile } = useAuth();
   const [selectedUser, setSelectedUser] = useState<LeaderboardUser | null>(
-    null
+    null,
   );
   const [sectionFilter, setSectionFilter] = useState("ALL");
-  const [gamemode, setGamemode] = useState("MULTIPLAYER");
+  const [gamemode, setGamemode] = useState("ADVENTURE");
+  const [showPrivileged, setShowPrivileged] = useState(false);
+  const [showLeagueInfo, setShowLeagueInfo] = useState(false);
 
   const [users, setUsers] = useState<LeaderboardUser[]>(() => {
     if (typeof window !== "undefined") {
@@ -123,22 +132,22 @@ export function LeaderboardTab() {
 
       while (attempt < maxRetries && !success) {
         try {
-          let query = supabase.from("users").select("*");
+          // EXPLICIT RESTRICTION: Only fetch students
+          let query = supabase.from("users").select("*").eq("role", "user");
 
           // --- DYNAMIC SORTING BASED ON GAMEMODE ---
           if (gamemode === "MULTIPLAYER") {
             query = query.order("trophies", { ascending: false });
           } else if (gamemode === "CHALLENGES") {
-            query = query.order("stars", { ascending: false }); // Assuming 'stars' exists
+            query = query.order("stars", { ascending: false });
           } else if (gamemode === "ADVENTURE") {
-            // REFACTORED QUERY: Sort by total_runtime ASC
-            // Filter out '0' values (users who haven't played)
-            query = query
-              .gt("total_runtime", 0)
-              .order("total_runtime", { ascending: true });
+            // REFACTORED QUERY: Fetch broadly, filter/sort client-side for "Chapters Completed" priority
+            query = query.gt("total_runtime", 0).limit(1000); // Fetch top 1000 candidates to sort in memory
           }
 
-          const { data, error } = await query.limit(100);
+          const { data, error } = await query.limit(
+            gamemode === "ADVENTURE" ? 1000 : 100,
+          );
 
           if (error) throw error;
 
@@ -159,13 +168,39 @@ export function LeaderboardTab() {
               stars: u.stars || 0,
               // Map DB column to Interface
               totalRuntime: u.total_runtime,
-            })
+              role: u.role,
+              completedChapters: u.completed_chapters || [],
+              isAdventureCompleted: u.is_adventure_completed,
+            }),
           );
+
+          // --- CLIENT-SIDE SORTING FOR ADVENTURE ---
+          if (gamemode === "ADVENTURE") {
+            fetchedUsers.sort((a, b) => {
+              // 1. Primary: Chapters Completed (Higher is Better)
+              const chaptersA = a.completedChapters?.length || 0;
+              const chaptersB = b.completedChapters?.length || 0;
+              if (chaptersA !== chaptersB) return chaptersB - chaptersA;
+
+              // 2. Secondary: Total Runtime (Lower is Better)
+              const timeA = a.totalRuntime || 999999999;
+              const timeB = b.totalRuntime || 999999999;
+              if (timeA !== timeB) return timeA - timeB;
+
+              // 3. Tertiary: XP (Higher is Better)
+              if (a.xp !== b.xp) return b.xp - a.xp;
+
+              // 4. Quaternary: ID (Strict Tie-breaker)
+              return a.id.localeCompare(b.id);
+            });
+            // Slice top 100 after sort
+            fetchedUsers.length = Math.min(fetchedUsers.length, 100);
+          }
 
           setUsers(fetchedUsers);
           localStorage.setItem(
             LEADERBOARD_CACHE_KEY,
-            JSON.stringify(fetchedUsers)
+            JSON.stringify(fetchedUsers),
           );
           success = true;
         } catch (error) {
@@ -177,7 +212,7 @@ export function LeaderboardTab() {
 
       if (!isBackground) setLoading(false);
     },
-    [gamemode]
+    [gamemode],
   );
 
   useEffect(() => {
@@ -231,10 +266,16 @@ export function LeaderboardTab() {
   }, [user?.xp, user?.league, updateProfile]);
 
   const filteredUsers = useMemo(() => {
-    if (sectionFilter === "ALL") return users;
-    return users.filter((u) =>
-      u.section?.toUpperCase().includes(sectionFilter)
-    );
+    let result = users;
+
+    // Filter by Section
+    if (sectionFilter !== "ALL") {
+      result = result.filter((u) =>
+        u.section?.toUpperCase().includes(sectionFilter),
+      );
+    }
+
+    return result;
   }, [users, sectionFilter]);
 
   const topThree = filteredUsers.slice(0, 3);
@@ -271,41 +312,58 @@ export function LeaderboardTab() {
         </h1>
 
         <div className="flex flex-wrap items-center justify-center gap-3 mt-4 relative z-20">
-          <TooltipProvider delayDuration={0}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-help">
-                  <Info className="w-5 h-5 text-gray-400 hover:text-indigo-500" />
-                </div>
-              </TooltipTrigger>
-              <TooltipContent
-                side="bottom"
-                className="p-4 bg-white dark:bg-gray-950 border-gray-200 dark:border-gray-800 shadow-xl rounded-2xl w-64"
-              >
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2 border-b pb-2 mb-2 dark:border-gray-800">
-                    <Award className="w-4 h-4 text-indigo-500" />
-                    <h4 className="font-bold text-sm">League System</h4>
+          {/* DESKTOP: Hover Tooltip */}
+          <div className="hidden md:block">
+            <TooltipProvider delayDuration={0}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer group active:scale-95">
+                    <Info className="w-5 h-5 text-gray-400 group-hover:text-indigo-500 transition-colors" />
                   </div>
-                  <div className="space-y-2">
-                    {LEAGUES.map((league) => (
-                      <div
-                        key={league.name}
-                        className="flex items-center justify-between text-xs"
-                      >
-                        <span className={`font-bold ${league.color}`}>
-                          {league.name}
-                        </span>
-                        <span className="text-muted-foreground font-mono">
-                          {league.minXp.toLocaleString()}+ XP
-                        </span>
-                      </div>
-                    ))}
+                </TooltipTrigger>
+                <TooltipContent
+                  side="bottom"
+                  className="p-4 bg-white dark:bg-gray-950 border-gray-200 dark:border-gray-800 shadow-xl rounded-2xl w-64"
+                >
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2 border-b pb-2 mb-2 dark:border-gray-800">
+                      <Award className="w-4 h-4 text-indigo-500" />
+                      <h4 className="font-bold text-sm">League System</h4>
+                    </div>
+                    <div className="space-y-2">
+                      {LEAGUES.slice()
+                        .reverse()
+                        .map((league) => (
+                          <div
+                            key={league.name}
+                            className="flex items-center justify-between text-xs"
+                          >
+                            <span className={`font-bold ${league.color}`}>
+                              {league.name}
+                            </span>
+                            <span className="text-muted-foreground font-mono">
+                              {league.minXp.toLocaleString()}+ XP
+                            </span>
+                          </div>
+                        ))}
+                    </div>
                   </div>
-                </div>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+
+          {/* MOBILE: Click Dialog */}
+          <div className="block md:hidden">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setShowLeagueInfo(true)}
+              className="rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 hover:text-indigo-500"
+            >
+              <Info className="w-5 h-5" />
+            </Button>
+          </div>
 
           {/* Gamemode Filter Dropdown */}
           <DropdownMenu>
@@ -377,14 +435,14 @@ export function LeaderboardTab() {
       {!loading && filteredUsers.length > 0 && (
         <>
           <motion.div
-            className="grid grid-cols-1 md:grid-cols-3 gap-4"
+            className="flex items-end justify-center gap-2 md:grid md:grid-cols-3 md:items-end md:gap-4 mt-8 md:mt-0"
             variants={containerVariants}
             initial="hidden"
             animate="visible"
           >
             <motion.div
               variants={itemVariants}
-              className="md:mt-8 order-2 md:order-1"
+              className="order-1 md:order-1 flex-1 max-w-[120px] md:max-w-none"
             >
               {topThree[1] && (
                 <PodiumCard
@@ -396,7 +454,10 @@ export function LeaderboardTab() {
               )}
             </motion.div>
 
-            <motion.div variants={itemVariants} className="order-1 md:order-2">
+            <motion.div
+              variants={itemVariants}
+              className="order-2 md:order-2 flex-1 max-w-[140px] md:max-w-none md:mb-0 z-10"
+            >
               {topThree[0] && (
                 <PodiumCard
                   user={topThree[0]}
@@ -407,7 +468,10 @@ export function LeaderboardTab() {
               )}
             </motion.div>
 
-            <motion.div variants={itemVariants} className="md:mt-8 order-3">
+            <motion.div
+              variants={itemVariants}
+              className="order-3 md:order-3 flex-1 max-w-[120px] md:max-w-none"
+            >
               {topThree[2] && (
                 <PodiumCard
                   user={topThree[2]}
@@ -478,6 +542,52 @@ export function LeaderboardTab() {
         user={selectedUser}
         onClose={() => setSelectedUser(null)}
       />
+
+      {/* Mobile League Info Dialog */}
+      <Dialog open={showLeagueInfo} onOpenChange={setShowLeagueInfo}>
+        <DialogContent className="w-[90vw] sm:max-w-sm bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 rounded-3xl p-6">
+          <DialogHeader className="pb-4 border-b dark:border-gray-800">
+            <DialogTitle className="flex items-center gap-2 text-xl font-bold font-pixelify">
+              <Award className="w-6 h-6 text-indigo-500" />
+              League System
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 mt-4">
+            {LEAGUES.slice()
+              .reverse()
+              .map((league) => (
+                <div
+                  key={league.name}
+                  className="flex items-center justify-between text-sm"
+                >
+                  <div className="flex items-center gap-3">
+                    <div
+                      className={`w-2 h-2 rounded-full ${
+                        league.name === "Diamond"
+                          ? "bg-indigo-400"
+                          : league.name === "Platinum"
+                          ? "bg-cyan-400"
+                          : league.name === "Gold"
+                          ? "bg-yellow-500"
+                          : league.name === "Silver"
+                          ? "bg-slate-400"
+                          : league.name === "Bronze"
+                          ? "bg-orange-600"
+                          : "bg-gray-500"
+                      }`}
+                    />
+                    <span className={`font-bold ${league.color}`}>
+                      {league.name}
+                    </span>
+                  </div>
+                  <span className="text-muted-foreground font-mono">
+                    {league.minXp.toLocaleString()}+ XP
+                  </span>
+                </div>
+              ))}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -493,23 +603,23 @@ function UserProfileModal({
 
   return (
     <Dialog open={!!user} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-md bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 p-0 overflow-hidden rounded-3xl">
+      <DialogContent className="w-[90vw] sm:max-w-md bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 p-0 overflow-hidden rounded-3xl">
         <DialogHeader className="p-6 pb-0">
           <DialogTitle className="text-center text-xl font-bold font-pixelify">
             Player Card
           </DialogTitle>
         </DialogHeader>
 
-        <div className="flex flex-col items-center p-6 space-y-6">
-          <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-indigo-500 bg-gray-100 dark:bg-gray-800 shadow-xl relative">
+        <div className="flex flex-col items-center p-4 md:p-6 space-y-4 md:space-y-6">
+          <div className="w-24 h-24 md:w-32 md:h-32 rounded-full overflow-hidden border-4 border-indigo-500 bg-gray-100 dark:bg-gray-800 shadow-xl relative">
             <AvatarDisplay config={user.avatarConfig} headOnly />
           </div>
 
           <div className="text-center space-y-1">
-            <h2 className="text-2xl font-black text-gray-900 dark:text-white">
+            <h2 className="text-lg md:text-2xl font-black text-gray-900 dark:text-white">
               {user.displayName}
             </h2>
-            <div className="flex items-center justify-center gap-2 text-sm text-gray-500 font-medium">
+            <div className="flex items-center justify-center gap-2 text-xs md:text-sm text-gray-500 font-medium">
               <span className="uppercase tracking-wider">
                 {user.league} League
               </span>
@@ -555,12 +665,12 @@ function UserProfileModal({
             </div>
           </div>
 
-          <div className="w-full space-y-3">
-            <div className="text-sm font-bold uppercase text-gray-400 tracking-wider ml-1">
+          <div className="w-full space-y-2 md:space-y-3">
+            <div className="text-xs md:text-sm font-bold uppercase text-gray-400 tracking-wider ml-1">
               Badges Earned
             </div>
             {user.badges && user.badges.length > 0 ? (
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-1 md:gap-2">
                 {user.badges.map((badge, i) => (
                   <Badge
                     key={i}
@@ -625,12 +735,25 @@ function PodiumCard({
         </>
       );
     } else if (gamemode === "ADVENTURE") {
+      const isCompleted =
+        (user.completedChapters?.length || 0) >= TOTAL_CHAPTERS ||
+        user.isAdventureCompleted;
       return (
         <>
-          <Clock className={`w-5 h-5 text-blue-400`} />
-          <span className="text-lg">
-            {user.totalRuntime ? formatTime(user.totalRuntime) : "--"}
-          </span>
+          {isCompleted ? (
+            <>
+              <Clock className="w-5 h-5 text-blue-400" />
+              <span className="text-xl font-black">
+                {formatTime(user.totalRuntime!)}
+              </span>
+            </>
+          ) : (
+            <div className="flex flex-col items-center gap-0.5 md:gap-1">
+              <span className="text-xs md:text-sm font-semibold text-gray-400 dark:text-gray-500">
+                {user.completedChapters?.length || 0}/{TOTAL_CHAPTERS}
+              </span>
+            </div>
+          )}
         </>
       );
     }
@@ -639,7 +762,10 @@ function PodiumCard({
   return (
     <div
       onClick={onClick}
-      className={`relative rounded-3xl p-6 flex flex-col items-center text-center shadow-lg transition-all hover:scale-[1.03] cursor-pointer group
+      className={`relative rounded-3xl p-3 md:p-6 flex flex-col items-center justify-between text-center shadow-lg transition-all hover:scale-[1.03] cursor-pointer group w-full
+      ${isFirst ? "h-[260px] md:h-[400px]" : ""}
+      ${isSecond ? "h-[240px] md:h-[360px]" : ""}
+      ${isThird ? "h-[220px] md:h-[320px]" : ""}
       ${
         isFirst
           ? "bg-gradient-to-b from-yellow-50 to-white dark:from-yellow-900/20 dark:to-gray-900 border-2 border-yellow-400"
@@ -658,26 +784,26 @@ function PodiumCard({
     `}
     >
       <div
-        className={`absolute -top-6 w-12 h-12 rounded-full flex items-center justify-center border-4 shadow-md z-10
+        className={`absolute -top-4 md:-top-6 w-8 h-8 md:w-12 md:h-12 rounded-full flex items-center justify-center border-2 md:border-4 shadow-md z-10
         ${isFirst ? `bg-yellow-400 border-white dark:border-gray-900` : ""}
         ${isSecond ? `bg-gray-300 border-white dark:border-gray-900` : ""}
         ${isThird ? `bg-orange-500 border-white dark:border-gray-900` : ""}
       `}
       >
         {isFirst ? (
-          <MedalGold className="w-8 h-8 text-white fill-current" />
+          <MedalGold className="w-5 h-5 md:w-8 md:h-8 text-white fill-current" />
         ) : isSecond ? (
-          <MedalSilver className="w-8 h-8 text-white fill-current" />
+          <MedalSilver className="w-5 h-5 md:w-8 md:h-8 text-white fill-current" />
         ) : isThird ? (
-          <MedalBronze className="w-8 h-8 text-white fill-current" />
+          <MedalBronze className="w-5 h-5 md:w-8 md:h-8 text-white fill-current" />
         ) : null}
       </div>
 
       <div
-        className={`mt-6 w-24 h-24 rounded-full overflow-hidden border-4 bg-gray-100 dark:bg-gray-800 flex-shrink-0 relative transition-transform group-hover:scale-105
+        className={`mt-4 md:mt-6 w-16 h-16 md:w-24 md:h-24 rounded-full overflow-hidden border-2 md:border-4 bg-gray-100 dark:bg-gray-800 flex-shrink-0 relative transition-transform group-hover:scale-105
           ${
             isFirst
-              ? "border-yellow-400 ring-4 ring-yellow-400/20"
+              ? "border-yellow-400 ring-2 md:ring-4 ring-yellow-400/20"
               : "border-gray-200 dark:border-gray-700"
           }
       `}
@@ -685,25 +811,20 @@ function PodiumCard({
         <AvatarDisplay config={user.avatarConfig} headOnly />
       </div>
 
-      <h3 className="text-xl font-bold text-gray-900 dark:text-white mt-4 truncate w-full px-2 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+      <h3 className="text-sm md:text-xl font-bold text-gray-900 dark:text-white mt-3 md:mt-4 truncate w-full px-1 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
         {user.displayName}
       </h3>
 
-      <div className="flex flex-col items-center mt-1 space-y-1">
-        <span className="px-2 py-0.5 rounded-md bg-gray-100 dark:bg-gray-800 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+      <div className="flex flex-col items-center mt-1 space-y-0.5 md:space-y-1">
+        <span className="px-1.5 py-0.5 rounded-md bg-gray-100 dark:bg-gray-800 text-[10px] md:text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
           {user.league}
         </span>
-        <span className="text-xs text-indigo-500 font-semibold">
+        <span className="hidden md:inline text-xs text-indigo-500 font-semibold">
           Level {user.level}
         </span>
-        {user.section && (
-          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-            {user.section}
-          </span>
-        )}
       </div>
 
-      <div className="mt-4 bg-gray-900 dark:bg-white/10 rounded-xl px-4 py-2 text-xl font-black text-white flex items-center gap-2 shadow-inner">
+      <div className="mt-2 md:mt-4 bg-gray-900 dark:bg-white/10 rounded-xl px-2 py-1 md:px-4 md:py-2 text-xs md:text-xl font-black text-white flex items-center gap-1 md:gap-2 shadow-inner">
         {renderMetric()}
       </div>
     </div>
@@ -767,10 +888,21 @@ function UserRankRow({
         </>
       );
     } else if (gamemode === "ADVENTURE") {
+      const isCompleted =
+        (user.completedChapters?.length || 0) >= TOTAL_CHAPTERS ||
+        user.isAdventureCompleted;
       return (
         <>
-          <Clock className="w-4 h-4 text-blue-500" />
-          {user.totalRuntime ? formatTime(user.totalRuntime) : "--"}
+          {isCompleted ? (
+            <>
+              <Clock className="w-4 h-4 text-blue-500" />
+              {formatTime(user.totalRuntime!)}
+            </>
+          ) : (
+            <span className="px-2 py-0.5 rounded-md bg-gray-100 dark:bg-gray-800 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+              In Progress {user.completedChapters?.length || 0}/{TOTAL_CHAPTERS}
+            </span>
+          )}
         </>
       );
     }
@@ -779,13 +911,13 @@ function UserRankRow({
   return (
     <div
       onClick={onClick}
-      className={`flex items-center p-4 rounded-xl transition-all border cursor-pointer hover:shadow-md hover:scale-[1.01] active:scale-[0.99]
+      className={`flex items-center p-2 md:p-4 rounded-xl transition-all border cursor-pointer hover:shadow-md hover:scale-[1.01] active:scale-[0.99]
       ${bgColor} ${borderColor} ${highlightClass}
-      ${isSticky ? "shadow-2xl" : "shadow-sm"}
+      ${isSticky ? "shadow-2xl mx-2 md:mx-0" : "shadow-sm mx-0"}
     `}
     >
       <div
-        className={`w-10 text-center text-lg font-black italic ${
+        className={`w-8 md:w-10 text-center text-sm md:text-lg font-black italic ${
           rank <= 3
             ? "text-gray-900 dark:text-white scale-110"
             : "text-gray-400 dark:text-gray-500"
@@ -794,39 +926,41 @@ function UserRankRow({
         #{rank}
       </div>
 
-      <div className="flex-1 flex items-center gap-3 ml-3 overflow-hidden">
-        <div className="w-10 h-10 rounded-full overflow-hidden border border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 flex-shrink-0 relative">
+      <div className="flex-1 flex items-center gap-2 md:gap-3 ml-2 md:ml-3 overflow-hidden">
+        <div className="w-8 h-8 md:w-10 md:h-10 rounded-full overflow-hidden border border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 flex-shrink-0 relative">
           <AvatarDisplay config={user.avatarConfig} headOnly />
         </div>
 
-        <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <div className="text-sm font-bold text-gray-900 dark:text-white truncate hover:text-indigo-500 transition-colors">
-              {user.displayName} {isCurrentUser && "(You)"}
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1 md:gap-2">
+            <div className="text-xs md:text-sm font-bold text-gray-900 dark:text-white truncate hover:text-indigo-500 transition-colors">
+              {user.displayName}{" "}
+              {isCurrentUser && (
+                <span className="text-[10px] opacity-70">(You)</span>
+              )}
             </div>
             {rank === 1 && (
               <Crown className="w-3 h-3 text-yellow-500 fill-current" />
             )}
           </div>
-          <div className="flex items-center text-xs text-gray-500 dark:text-gray-400 gap-2">
+          <div className="flex items-center text-[10px] md:text-xs text-gray-500 dark:text-gray-400 gap-2">
             <span className="font-semibold text-indigo-500">{user.league}</span>
-            <span>•</span>
-            <span>Lvl {user.level}</span>
+            <span className="hidden md:inline">• Lvl {user.level}</span>
             {user.section && (
-              <>
-                <span>•</span>
+              <span className="hidden md:inline">
+                •{" "}
                 <span className="uppercase font-bold tracking-wide">
                   {user.section}
                 </span>
-              </>
+              </span>
             )}
           </div>
         </div>
       </div>
 
-      <div className="text-right pl-2">
+      <div className="text-right pl-1 md:pl-2">
         <div
-          className={`flex items-center justify-end gap-1.5 text-base font-black ${
+          className={`flex items-center justify-end gap-1.5 text-xs md:text-base font-black ${
             isCurrentUser
               ? "text-indigo-700 dark:text-indigo-300"
               : "text-gray-900 dark:text-white"
@@ -842,34 +976,39 @@ function UserRankRow({
 function LeaderboardSkeleton() {
   return (
     <div className="space-y-8">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {[1, 2, 3].map((i) => (
-          <div
-            key={i}
-            className={`p-6 rounded-3xl border border-gray-200 dark:border-gray-800 flex flex-col items-center ${
-              i !== 2 ? "md:mt-8" : ""
-            }`}
-          >
-            <Skeleton className="w-20 h-20 rounded-full" />
-            <Skeleton className="h-6 w-3/4 mt-4" />
-            <Skeleton className="h-4 w-1/3 mt-2" />
-            <Skeleton className="h-10 w-1/2 mt-4 rounded-xl" />
-          </div>
-        ))}
+      {/* Podium Skeleton */}
+      <div className="flex items-end justify-center gap-2 md:gap-4 h-48 md:h-64 pb-4">
+        {/* 2nd Place */}
+        <div className="flex flex-col items-center gap-2 w-1/3 max-w-[120px]">
+          <Skeleton className="w-12 h-12 md:w-16 md:h-16 rounded-full" />
+          <Skeleton className="h-24 md:h-32 w-full rounded-t-lg opacity-80" />
+        </div>
+        {/* 1st Place */}
+        <div className="flex flex-col items-center gap-2 w-1/3 max-w-[140px]">
+          <Skeleton className="w-16 h-16 md:w-20 md:h-20 rounded-full" />
+          <Skeleton className="h-32 md:h-40 w-full rounded-t-lg" />
+        </div>
+        {/* 3rd Place */}
+        <div className="flex flex-col items-center gap-2 w-1/3 max-w-[120px]">
+          <Skeleton className="w-12 h-12 md:w-16 md:h-16 rounded-full" />
+          <Skeleton className="h-20 md:h-28 w-full rounded-t-lg opacity-60" />
+        </div>
       </div>
+
+      {/* List Skeleton */}
       <div className="space-y-3">
-        {[...Array(5)].map((_, i) => (
+        {[...Array(6)].map((_, i) => (
           <div
             key={i}
-            className="flex items-center p-4 rounded-xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800"
+            className="flex items-center p-2 md:p-3 rounded-xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800"
           >
-            <Skeleton className="h-6 w-8 rounded" />
-            <Skeleton className="w-10 h-10 rounded-full ml-3" />
-            <div className="flex-1 ml-3 space-y-2">
-              <Skeleton className="h-4 w-1/3" />
-              <Skeleton className="h-3 w-1/4" />
+            <Skeleton className="h-4 w-6 rounded mx-2" />
+            <Skeleton className="w-8 h-8 md:w-10 md:h-10 rounded-full ml-2" />
+            <div className="flex-1 ml-3 space-y-1.5 ">
+              <Skeleton className="h-4 w-24 md:w-32" />
+              <Skeleton className="h-3 w-16" />
             </div>
-            <Skeleton className="h-6 w-16 rounded" />
+            <Skeleton className="h-5 w-12 rounded ml-auto mr-2" />
           </div>
         ))}
       </div>

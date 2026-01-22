@@ -2,12 +2,14 @@
 import { useNavigate } from "@remix-run/react";
 import { motion } from "framer-motion";
 import { Users, Code2, ArrowRight, Lock } from "lucide-react";
+import { useState, useEffect } from "react"; // ADDED
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { Button } from "~/components/ui/button";
 import { Badge } from "~/components/ui/badge";
 import { useAuth } from "~/contexts/AuthContext";
 import { cn } from "~/lib/utils";
 import { ControllerIcon, MapIcon } from "../ui/Icons";
+import { PlaySkeleton } from "./PlaySkeleton"; // ADDED
 
 // Import the Updated MatchHistoryTab
 import { MatchHistoryTab } from "./MatchHistoryTab";
@@ -16,6 +18,15 @@ export function PlayTab() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const currentLevel = user?.level || 1;
+  const [loading, setLoading] = useState(true); // ADDED
+
+  // Simulate loading for consistent UX
+  useEffect(() => {
+    const timer = setTimeout(() => setLoading(false), 600);
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (loading) return <PlaySkeleton />; // ADDED
 
   const gameModes = [
     {
@@ -97,7 +108,7 @@ export function PlayTab() {
                   "h-full relative overflow-hidden transition-all duration-300 border-2",
                   isLocked
                     ? "opacity-80 grayscale-[0.5] border-dashed"
-                    : `cursor-pointer hover:shadow-xl hover:-translate-y-1 ${mode.borderColor}`
+                    : `cursor-pointer hover:shadow-xl hover:-translate-y-1 ${mode.borderColor}`,
                 )}
                 onClick={() => !isLocked && navigate(mode.route)}
               >
@@ -118,7 +129,7 @@ export function PlayTab() {
                 <div
                   className={cn(
                     "absolute top-0 right-0 w-32 h-32 rounded-full blur-3xl -mr-16 -mt-16 opacity-20",
-                    mode.color.replace("text-", "bg-")
+                    mode.color.replace("text-", "bg-"),
                   )}
                 />
 
@@ -126,7 +137,7 @@ export function PlayTab() {
                   <div
                     className={cn(
                       "w-14 h-14 rounded-2xl flex items-center justify-center mb-4 transition-transform group-hover:scale-110",
-                      mode.bgColor
+                      mode.bgColor,
                     )}
                   >
                     <mode.icon className={cn("w-10 h-10", mode.color)} />
@@ -154,7 +165,7 @@ export function PlayTab() {
                     className={cn(
                       "w-full justify-between group",
                       !isLocked &&
-                        "bg-foreground text-background hover:bg-foreground/90"
+                        "bg-foreground text-background hover:bg-foreground/90",
                     )}
                     disabled={isLocked}
                   >

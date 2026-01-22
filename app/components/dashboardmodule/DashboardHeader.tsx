@@ -1,3 +1,4 @@
+// app/components/dashboardmodule/DashboardHeader.tsx
 import { useState } from "react";
 import { Button } from "~/components/ui/button";
 import { Badge } from "~/components/ui/badge";
@@ -24,15 +25,14 @@ import {
   LogOut,
   Clock,
   Zap,
+  User, // Imported User icon for Profile
 } from "lucide-react";
 import { AvatarDisplay } from "./AvatarDisplay";
 import { calculateProgress } from "~/lib/leveling-system";
 import { CoinIcon, FlameIcon, HeartIcon } from "../ui/Icons";
 import { useHeartSystem, MAX_HEARTS, HEART_COST } from "~/hooks/useHeartSystem";
 
-// ... (Keep StatItem and HeartDropdown exactly as you had them) ...
-// (I am omitting them here to save space, but DO NOT DELETE THEM)
-
+// ... (StatItem Component - Keep exactly as is) ...
 interface StatItemProps {
   icon: React.ReactNode;
   value: number;
@@ -51,6 +51,7 @@ function StatItem({ icon, value, color }: StatItemProps) {
   );
 }
 
+// ... (HeartDropdown Component - Keep exactly as is) ...
 function HeartDropdown({ hearts, timeRemaining, buyHearts }: any) {
   const isFull = hearts >= MAX_HEARTS;
   return (
@@ -122,6 +123,7 @@ interface DashboardHeaderProps {
   };
   onSwitchTheme: () => void;
   onLogout: () => void;
+  onProfileClick: () => void; // ✅ NEW PROP: Callback for profile navigation
 }
 
 const defaultStats = { streaks: 0, coins: 0, hearts: 0 };
@@ -133,6 +135,7 @@ export function DashboardHeader({
   stats = defaultStats,
   onSwitchTheme,
   onLogout,
+  onProfileClick, // ✅ Destructure new prop
 }: DashboardHeaderProps) {
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
   const { currentLevel, progressPercent } = calculateProgress(user?.xp || 0);
@@ -165,7 +168,7 @@ export function DashboardHeader({
               variant="ghost"
               size="icon"
               onClick={onToggleSidebar}
-              className="h-9 w-9 hidden md:inline-flex" // ✅ UPDATED: Hidden on mobile
+              className="h-9 w-9 hidden md:inline-flex"
             >
               {sidebarCollapsed ? (
                 <PanelLeftOpen className="h-5 w-5" />
@@ -247,6 +250,15 @@ export function DashboardHeader({
                   </span>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
+
+                {/* ✅ NEW: Profile Button */}
+                <DropdownMenuItem
+                  onClick={onProfileClick}
+                  className="cursor-pointer"
+                >
+                  <User className="mr-2 h-4 w-4" /> <span>Profile</span>
+                </DropdownMenuItem>
+
                 <DropdownMenuItem
                   onClick={onSwitchTheme}
                   className="cursor-pointer"
