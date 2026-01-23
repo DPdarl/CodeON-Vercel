@@ -10,6 +10,7 @@ import {
 } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "~/lib/supabase";
+import { trackQuestEvent } from "~/lib/quest-tracker";
 
 export interface UserData {
   uid: string;
@@ -39,6 +40,9 @@ export interface UserData {
   googleBound?: boolean;
   birthdate?: string;
   completedChapters?: string[];
+  stats?: any; // REMOVED
+  questStats?: any; // For quest metrics
+  claimedQuests?: string[];
 }
 
 interface AuthContextType {
@@ -63,8 +67,31 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const USER_CACHE_KEY = "codeon_user_cache";
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<UserData | null>(null);
-  const [loading, setLoading] = useState(true);
+  // ------------------------
+  // Optimized State Init
+  // ------------------------
+  const [user, setUser] = useState<UserData | null>(() => {
+    // Optimistic Hydration: Try to load from localStorage immediately
+    if (typeof window !== "undefined") {
+      try {
+        const cached = localStorage.getItem(USER_CACHE_KEY);
+        return cached ? JSON.parse(cached) : null;
+      } catch (e) {
+        console.warn("Failed to parse user cache", e);
+      }
+    }
+    return null;
+  });
+
+  // If we have a cached user, we don't start in "loading" state visibly
+  // This enables "Stale-While-Revalidate" UX
+  const [loading, setLoading] = useState(() => {
+    if (typeof window !== "undefined") {
+      return !localStorage.getItem(USER_CACHE_KEY);
+    }
+    return true;
+  });
+
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
   // ------------------------
@@ -99,6 +126,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       googleBound: db.google_bound === true || !!db.google_provider_id,
       birthdate: db.birthdate,
       completedChapters: db.completed_chapters ?? [],
+      questStats: db.stats ?? {},
+      claimedQuests: db.claimed_quests ?? [],
     }),
     [],
   );
@@ -143,6 +172,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       db.completed_chapters = db.completedChapters;
       delete db.completedChapters;
     }
+    if ("claimedQuests" in db) {
+      db.claimed_quests = db.claimedQuests;
+      delete db.claimedQuests;
+    }
+    if ("questStats" in db) {
+      db.stats = db.questStats;
+      delete db.questStats;
+    }
 
     delete db.uid;
     delete db.studentId;
@@ -167,6 +204,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         if (data) {
+          // --- DAILY LOGIN CHECK ---
+          const today = new Date().toISOString().split("T")[0];
+          const activeDates: string[] = data.active_dates || [];
+
+          if (!activeDates.includes(today)) {
+            console.log("📅 New login today! Updating active_dates & stats...");
+
+            // 1. Update active_dates in DB
+            const newDates = [...activeDates, today];
+            await supabase
+              .from("users")
+              .update({ active_dates: newDates })
+              .eq("id", authUser.id);
+
+            // 2. Track Quest (Daily Dev)
+            await trackQuestEvent(authUser.id, "daily_logins", 1);
+
+            // 3. Update local data reference so UI reflects it immediately
+            data.active_dates = newDates;
+            data.questStats = {
+              ...(data.questStats || {}),
+              daily_logins: (data.questStats?.daily_logins || 0) + 1,
+            };
+            if (data.stats) delete data.stats; // Clean up plain stats if present
+          }
+          // -------------------------
+
           const mapped = mapUserFromDB(data);
           setUser(mapped);
           localStorage.setItem(USER_CACHE_KEY, JSON.stringify(mapped));
@@ -217,19 +281,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .subscribe();
   }, [user?.uid, mapUserFromDB]);
 
-  // Visibility Change Listener
+  // ✅ Re-connection Listener (Focus + Visibility)
+  const lastRefresh = useRef(0);
+
   useEffect(() => {
     if (!user) return;
+
+    // Initial setup
     setupRealtime();
-    const onVisible = () => {
+
+    const handleReconnection = async () => {
+      const now = Date.now();
+      // Throttle: Only refresh if more than 30 seconds have passed
+      if (now - lastRefresh.current < 30000) return;
+
+      // Run only when visible or focused
       if (document.visibilityState === "visible") {
-        fetchUserData({ id: user.uid } as User);
-        setupRealtime();
+        console.log("⚡ App in foreground: Refreshing session & Realtime...");
+        lastRefresh.current = now;
+
+        // 1. Refresh Session (This auto-updates the token)
+        const {
+          data: { user: authUser },
+        } = await supabase.auth.getUser();
+
+        if (authUser) {
+          // 2. Sync latest data
+          await fetchUserData(authUser);
+          // 3. Force restart subscription
+          setupRealtime();
+        }
       }
     };
-    document.addEventListener("visibilitychange", onVisible);
+
+    window.addEventListener("focus", handleReconnection);
+    document.addEventListener("visibilitychange", handleReconnection);
+
     return () => {
-      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", handleReconnection);
+      document.removeEventListener("visibilitychange", handleReconnection);
       channelRef.current?.unsubscribe();
     };
   }, [user?.uid, setupRealtime, fetchUserData]);
@@ -272,23 +362,50 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [fetchUserData]);
 
   // ------------------------
-  // ✅ 2. Main Auth Listener
+  // ✅ 2. Main Auth Listener with Safety Timeout
   // ------------------------
   useEffect(() => {
     let mounted = true;
 
-    const initSession = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-
-      if (session?.user) {
-        await fetchUserData(session.user);
-      } else {
-        setUser(null);
-        localStorage.removeItem(USER_CACHE_KEY);
+    // Safety timeout to prevent indefinite loading
+    const safetyTimeout = setTimeout(() => {
+      if (mounted) {
+        setLoading((prev) => {
+          if (prev) {
+            console.warn(
+              "⚠️ Auth initialization timed out. Forcing loading false.",
+            );
+            return false;
+          }
+          return prev;
+        });
       }
-      if (mounted) setLoading(false);
+    }, 5000); // 5 seconds max wait
+
+    const initSession = async () => {
+      try {
+        const {
+          data: { session },
+          error,
+        } = await supabase.auth.getSession();
+
+        if (error) {
+          console.error("Error checking session:", error);
+        }
+
+        if (session?.user) {
+          await fetchUserData(session.user);
+        } else {
+          // If explicitly no session, clear user (handles expired token case)
+          console.log("No active session found.");
+          setUser(null);
+          localStorage.removeItem(USER_CACHE_KEY);
+        }
+      } catch (err) {
+        console.error("Session init failed:", err);
+      } finally {
+        if (mounted) setLoading(false);
+      }
     };
 
     initSession();
@@ -311,6 +428,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     return () => {
       mounted = false;
+      clearTimeout(safetyTimeout);
       subscription.unsubscribe();
     };
   }, [fetchUserData]);
@@ -343,23 +461,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [user, mapUserToDB, syncUser],
   );
 
-  const loginWithStudentId = async (studentId: string, p: string) => {
+  const loginWithStudentId = async (identifier: string, p: string) => {
     setLoading(true);
     try {
-      const { data: profile, error: profileError } = await supabase
-        .from("users")
-        .select("email")
-        .eq("student_id", studentId)
-        .single();
+      let emailToLogin = "";
+      let isEmailLogin = false;
 
-      if (profileError || !profile?.email) {
-        setLoading(false);
-        throw new Error("Student ID not found in records.");
+      // 1. Determine if input is Email or Student ID
+      if (identifier.includes("@")) {
+        emailToLogin = identifier;
+        isEmailLogin = true;
+      } else {
+        // 2. Lookup Email from Student ID
+        const { data: profile, error: profileError } = await supabase
+          .from("users")
+          .select("email")
+          .eq("student_id", identifier)
+          .single();
+
+        if (profileError || !profile?.email) {
+          setLoading(false);
+          throw new Error("Student ID not found in records.");
+        }
+        emailToLogin = profile.email;
       }
 
+      // 3. Attempt Login
       const { data: loginData, error: loginError } =
         await supabase.auth.signInWithPassword({
-          email: profile.email,
+          email: emailToLogin,
           password: p,
         });
 
@@ -369,15 +499,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return userData;
       }
 
-      // ... existing fallback signup logic ...
-      if (loginError) {
+      // 4. Fallback: Auto-Signup (Only for Student ID logins with default pwd)
+      if (loginError && !isEmailLogin) {
         const isDefaultFormat = /^Ici\d{4}-\d{2}-\d{2}$/.test(p);
         if (isDefaultFormat) {
           const { data: signUpData, error: signUpError } =
             await supabase.auth.signUp({
-              email: profile.email,
+              email: emailToLogin,
               password: p,
-              options: { data: { student_id: studentId } },
+              options: { data: { student_id: identifier } },
             });
 
           if (signUpError) {
@@ -387,7 +517,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
           if (signUpData.user) {
             await supabase.rpc("claim_student_profile", {
-              student_id_input: studentId,
+              student_id_input: identifier,
             });
             const userData = await fetchUserData(signUpData.user);
             setLoading(false);
@@ -397,6 +527,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setLoading(false);
         throw loginError;
       }
+
+      setLoading(false);
+      if (loginError) throw loginError;
       return null;
     } catch (error: any) {
       setLoading(false);
