@@ -38,7 +38,7 @@ export function AvatarDisplay({
       <div
         className={cn(
           "relative w-full h-full transition-transform duration-300 ease-in-out",
-          headOnly ? "scale-[1.7] origin-[50%_10%]" : "scale-100 origin-center"
+          headOnly ? "scale-[1.7] origin-[50%_10%]" : "scale-100 origin-center",
         )}
       >
         {layers.map((layer: any) => (

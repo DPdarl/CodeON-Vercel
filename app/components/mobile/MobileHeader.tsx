@@ -27,6 +27,7 @@ import {
 } from "~/components/ui/Icons";
 import { useHeartSystem, MAX_HEARTS, HEART_COST } from "~/hooks/useHeartSystem";
 import { calculateEffectiveStreak, getStreakState } from "~/lib/streak-logic";
+import { calculateProgress } from "~/lib/leveling-system";
 
 // --- SMALLER MOBILE STAT ITEM ---
 function MobileStatItem({
@@ -65,6 +66,14 @@ export function MobileHeader({
 
   const effectiveStreak = calculateEffectiveStreak(user);
   const streakState = getStreakState(user);
+  const { currentLevel, progressPercent } = calculateProgress(user?.xp || 0);
+
+  // SVG Config for Mobile XP Ring
+  const radius = 19; // Radius adjusted for 44px container
+  const center = 22; // Center point
+  const circumference = 2 * Math.PI * radius;
+  const strokeDashoffset =
+    circumference - (progressPercent / 100) * circumference;
 
   const confirmLogout = () => {
     setShowLogoutDialog(false);
@@ -88,7 +97,7 @@ export function MobileHeader({
           <div className="flex items-center space-x-2 shrink-0">
             {/* Level (Small Pill) */}
             <div className="px-2 py-0.5 rounded-md bg-yellow-100 dark:bg-yellow-900/30 text-[10px] font-black text-yellow-700 dark:text-yellow-400 border border-yellow-200 dark:border-yellow-800 uppercase tracking-wider shrink-0">
-              LVL {user?.level || 1}
+              LVL {currentLevel}
             </div>
 
             <MobileStatItem
@@ -146,12 +155,43 @@ export function MobileHeader({
         <div className="flex-none flex items-center justify-end">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <div className="h-8 w-8 rounded-full border-2 border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 overflow-hidden cursor-pointer active:scale-90 transition-transform">
-                <AvatarDisplay config={user?.avatarConfig} headOnly />
+              <div className="relative flex items-center justify-center w-[44px] h-[44px] cursor-pointer active:scale-90 transition-transform">
+                <svg
+                  className="absolute w-full h-full transform -rotate-90"
+                  viewBox="0 0 44 44"
+                >
+                  <circle
+                    cx={center}
+                    cy={center}
+                    r={radius}
+                    fill="none"
+                    className="stroke-gray-200 dark:stroke-gray-700"
+                    strokeWidth="3"
+                  />
+                  <circle
+                    cx={center}
+                    cy={center}
+                    r={radius}
+                    fill="none"
+                    className="stroke-indigo-500 transition-all duration-1000 ease-out"
+                    strokeWidth="3"
+                    strokeLinecap="round"
+                    strokeDasharray={circumference}
+                    strokeDashoffset={strokeDashoffset}
+                  />
+                </svg>
+                <div className="h-8 w-8 rounded-full border-2 border-white dark:border-gray-800 bg-gray-100 dark:bg-gray-800 overflow-hidden z-10">
+                  <AvatarDisplay config={user?.avatarConfig} headOnly />
+                </div>
               </div>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuLabel>Account</DropdownMenuLabel>
+              <DropdownMenuLabel>
+                My Account{" "}
+                <span className="ml-2 text-xs font-normal text-muted-foreground bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded capitalize">
+                  {user?.role || "Student"}
+                </span>
+              </DropdownMenuLabel>
               <DropdownMenuSeparator />
 
               {/* Profile Option */}
@@ -172,7 +212,6 @@ export function MobileHeader({
           </DropdownMenu>
         </div>
       </header>
-
       {/* Logout Dialog */}
       <Dialog open={showLogoutDialog} onOpenChange={setShowLogoutDialog}>
         <DialogContent className="max-w-xs rounded-2xl">
