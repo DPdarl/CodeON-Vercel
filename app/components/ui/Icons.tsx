@@ -61,11 +61,11 @@ export function FlameIcon({ className }: IconProps) {
   );
 }
 
-export function StreakBreakIcon({ className }: IconProps) {
+export function StreakPendingIcon({ className }: IconProps) {
   return (
     <PngIcon
-      src="/assets/icons/streakbreak.png"
-      alt="Streak Break"
+      src="/assets/icons/streakpending.png"
+      alt="Streak Pending"
       className={cn("h-8 w-8", className)}
     />
   );

@@ -1,6 +1,8 @@
 // app/components/challenge/Sidebar.tsx
 import React from "react";
 import { useChallengeContext } from "~/contexts/ChallengeContext";
+import { Check, Lock, PlayCircle, ChevronRight, Trophy } from "lucide-react";
+import { cn } from "~/lib/utils"; // Assuming utility exists, otherwise standard className string interpolation
 
 const Sidebar = () => {
   const {
@@ -9,99 +11,120 @@ const Sidebar = () => {
     setCurrentChallengeIndex,
     completed,
     userProgress,
-    coins,
-    currentChallenge, // Get the current challenge
+    currentChallenge,
   } = useChallengeContext();
 
-  // ▼▼▼ ADD THIS CHECK ▼▼▼
-  // If the challenge isn't loaded yet, don't render the sidebar content
-  // This prevents the "cannot read properties of undefined" error
   if (!currentChallenge) {
     return (
-      <div className="w-full lg:w-1/3 bg-gray-800 rounded-lg p-4">
-        <h2 className="text-xl font-bold mb-4 text-center">Loading...</h2>
-      </div>
+      <div className="w-full lg:w-80 bg-[#1E1E1E] rounded-xl p-4 animate-pulse h-[600px]"></div>
     );
   }
-  // ▲▲▲ END OF FIX ▲▲▲
-
-  const handleChallengeClick = (index: number) => {
-    setCurrentChallengeIndex(index);
-  };
 
   const isChallengeAccessible = (index: number) => {
     const challenge = challenges[index];
     if (!challenge) return false;
+    // Simple logic: accessible if previous is done or it's the current one.
+    // Assuming 'completed' contains IDs.
+    // If index 0, always open.
+    if (index === 0) return true;
 
-    // Use currentChallenge.id which we know is safe
-    return (
-      index <= currentChallengeIndex ||
-      completed.includes(challenge.id) ||
-      (index === currentChallengeIndex + 1 &&
-        completed.includes(currentChallenge.id))
-    );
+    // Check if previous challenge is completed
+    const prevChallenge = challenges[index - 1];
+    return completed.includes(prevChallenge.id);
   };
 
   return (
-    <div className="w-full lg:w-1/3 bg-gray-800 rounded-lg p-4 overflow-y-auto max-h-[calc(100vh-150px)]">
-      <h2 className="text-xl font-bold mb-4 text-center">
-        Module 1: Input / Output
-      </h2>
+    <div className="w-full h-full flex flex-col bg-[#1E1E1E] overflow-hidden">
+      {/* Sidebar Header */}
+      <div className="p-4 bg-gray-900 border-b border-gray-800">
+        <h2 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3">
+          Progress
+        </h2>
 
-      {/* Progress bar */}
-      <div className="mb-6">
-        <div className="flex justify-between text-sm mb-1">
-          <span>Progress</span>
-          <span>{Math.round(userProgress)}%</span>
-        </div>
-        <div className="h-2 bg-gray-700 rounded-full">
-          <div
-            className="h-2 bg-blue-500 rounded-full transition-all duration-300"
-            style={{ width: `${userProgress}%` }}
-          ></div>
+        <div className="space-y-2">
+          <div className="flex justify-between text-xs text-gray-300 font-medium">
+            <span>Module Completion</span>
+            <span>{Math.round(userProgress)}%</span>
+          </div>
+          <div className="h-1.5 w-full bg-gray-800 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-blue-500 rounded-full transition-all duration-500 ease-out"
+              style={{ width: `${userProgress}%` }}
+            />
+          </div>
         </div>
       </div>
 
-      {/* Coin balance (mobile visible) */}
-      <div className="lg:hidden bg-gray-700 rounded-lg p-2 mb-4 flex justify-between items-center">
-        <span className="text-yellow-400 text-sm">Coins:</span>
-        <span className="text-white font-bold">{coins}</span>
-      </div>
-
-      {/* Challenge list */}
-      <h3 className="font-semibold mb-2">Challenges:</h3>
-      <div className="space-y-2 overflow-y-auto pr-2">
+      {/* Challenge List */}
+      <div className="flex-1 overflow-y-auto p-2 space-y-1">
         {challenges.map((challenge, index) => {
           const isCurrent = index === currentChallengeIndex;
           const isCompleted = completed.includes(challenge.id);
-          const isAccessible = isChallengeAccessible(index);
+          const accessible = isChallengeAccessible(index);
+          const locked = !accessible && !isCompleted && !isCurrent;
 
           return (
-            <div
+            <button
               key={challenge.id}
-              onClick={() => isAccessible && handleChallengeClick(index)}
-              className={`p-3 rounded-lg cursor-pointer transition-all duration-200 flex items-center border ${
+              disabled={locked}
+              onClick={() => setCurrentChallengeIndex(index)}
+              className={cn(
+                "w-full flex items-center gap-3 p-3 rounded-lg text-left transition-all duration-200 group relative overflow-hidden",
                 isCurrent
-                  ? "bg-blue-700 border-blue-500"
+                  ? "bg-blue-600/10 border border-blue-500/50 text-blue-100"
                   : isCompleted
-                  ? "bg-gray-700 border-green-500 hover:bg-gray-600"
-                  : isAccessible
-                  ? "bg-gray-600 border-gray-500 hover:bg-gray-500"
-                  : "bg-gray-800 border-gray-700 cursor-not-allowed opacity-50"
-              }`}
+                  ? "text-gray-400 hover:bg-gray-800/50"
+                  : locked
+                  ? "text-gray-600 opacity-60 cursor-not-allowed"
+                  : "text-gray-300 hover:bg-gray-800 hover:text-white",
+              )}
             >
-              {/* Status icon (omitted for brevity, same as your JSX) */}
-              {isCompleted ? "✅" : isCurrent ? "▶️" : "🔒"}
-
-              {/* Challenge info */}
-              <div className="flex-grow ml-3">
-                <div className="text-sm font-medium">
-                  {challenge.id} - {challenge.title}
-                </div>
+              <div
+                className={cn(
+                  "flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-colors",
+                  isCurrent
+                    ? "bg-blue-500 text-white shadow-lg shadow-blue-500/30"
+                    : isCompleted
+                    ? "bg-green-500/20 text-green-500"
+                    : locked
+                    ? "bg-gray-800 text-gray-600"
+                    : "bg-gray-700 text-gray-400 group-hover:bg-gray-600 group-hover:text-white",
+                )}
+              >
+                {isCompleted ? (
+                  <Check className="w-4 h-4" />
+                ) : locked ? (
+                  <Lock className="w-3 h-3" />
+                ) : (
+                  <span className="text-xs font-bold">{index + 1}</span>
+                )}
               </div>
-            </div>
+
+              <div className="flex-grow min-w-0">
+                <div className="text-sm font-medium truncate">
+                  {challenge.title}
+                </div>
+                {isCurrent && (
+                  <div className="text-[10px] text-blue-300 font-medium animate-pulse">
+                    Current Task
+                  </div>
+                )}
+              </div>
+
+              {isCurrent && <ChevronRight className="w-4 h-4 text-blue-500" />}
+            </button>
           );
         })}
+      </div>
+
+      {/* Footer / Stats */}
+      <div className="p-4 bg-gray-900 border-t border-gray-800">
+        <div className="flex items-center gap-3 text-yellow-500 bg-yellow-500/10 p-2 rounded-lg border border-yellow-500/20">
+          <Trophy className="w-4 h-4" />
+          <span className="text-xs font-bold">
+            Earn Rewards upon Completion
+          </span>
+        </div>
       </div>
     </div>
   );

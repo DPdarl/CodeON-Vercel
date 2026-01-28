@@ -132,7 +132,7 @@ export function CustomizeAvatar({
       </CardHeader>
 
       <CardContent className="p-0">
-        <div className="flex flex-col lg:flex-row h-[800px] lg:h-[650px]">
+        <div className="flex flex-col lg:flex-row h-auto lg:h-[650px]">
           {/* --- LEFT: PREVIEW (55%) --- */}
           <div className="w-full lg:w-[55%] bg-gray-100/50 dark:bg-gray-900/50 p-6 flex flex-col justify-between border-r border-gray-100 dark:border-gray-800">
             <div className="flex-1 flex items-center justify-center">
@@ -151,7 +151,7 @@ export function CustomizeAvatar({
                 className={cn(
                   "w-full h-14 rounded-2xl font-black text-xl shadow-lg shadow-indigo-200 dark:shadow-none transition-all",
                   "bg-indigo-600 hover:bg-indigo-700 text-white hover:scale-[1.02] active:scale-[0.98]",
-                  isLoading && "opacity-80 cursor-wait"
+                  isLoading && "opacity-80 cursor-wait",
                 )}
               >
                 {isLoading ? "Saving..." : saveLabel}
@@ -175,13 +175,13 @@ export function CustomizeAvatar({
                         "flex items-center gap-2 px-4 py-2.5 rounded-2xl font-bold text-sm transition-all whitespace-nowrap snap-start border-b-4",
                         isActive
                           ? "bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-300 border-indigo-500"
-                          : "bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400 border-transparent hover:bg-gray-50 dark:hover:bg-gray-700/50"
+                          : "bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400 border-transparent hover:bg-gray-50 dark:hover:bg-gray-700/50",
                       )}
                     >
                       <Icon
                         className={cn(
                           "w-4 h-4",
-                          isActive ? "fill-current" : "stroke-current"
+                          isActive ? "fill-current" : "stroke-current",
                         )}
                       />
                       {cat.label}
@@ -192,7 +192,7 @@ export function CustomizeAvatar({
             </div>
 
             {/* SCROLLABLE OPTIONS */}
-            <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
+            <div className="flex-1 lg:overflow-y-auto p-6 custom-scrollbar">
               <AnimatePresence mode="wait">
                 <motion.div
                   key={activeCategory}
@@ -357,7 +357,7 @@ function ItemSwatch({ label, isSelected, onClick }: any) {
         "h-16 rounded-2xl border-2 transition-all flex items-center justify-center px-2 text-center relative overflow-hidden group",
         isSelected
           ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20 shadow-[0_0_0_2px_rgba(99,102,241,0.2)]"
-          : "border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-indigo-300 dark:hover:border-indigo-700 hover:shadow-md"
+          : "border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-indigo-300 dark:hover:border-indigo-700 hover:shadow-md",
       )}
       title={displayLabel}
     >
@@ -366,7 +366,7 @@ function ItemSwatch({ label, isSelected, onClick }: any) {
           "text-xs font-bold uppercase tracking-tight truncate w-full z-10 transition-colors",
           isSelected
             ? "text-indigo-600 dark:text-indigo-300"
-            : "text-gray-600 dark:text-gray-400 group-hover:text-indigo-500"
+            : "text-gray-600 dark:text-gray-400 group-hover:text-indigo-500",
         )}
       >
         {displayLabel}

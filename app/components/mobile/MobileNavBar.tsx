@@ -19,6 +19,7 @@ import {
 import { Button } from "~/components/ui/button";
 import { UserData } from "~/contexts/AuthContext";
 import { useQuestNotifications } from "~/hooks/useQuestNotifications";
+import { useStreakNotifications } from "~/hooks/useStreakNotifications";
 import {
   AdminIcon,
   ControllerIcon,
@@ -52,6 +53,7 @@ export function MobileNavBar({
 
   // Notification Hook
   const { hasUnclaimedQuests } = useQuestNotifications();
+  const { hasUnclaimedStreak } = useStreakNotifications();
 
   // --- CONFIGURATION ---
   const ALL_ROLES = ["superadmin", "admin", "instructor", "user"];
@@ -166,6 +168,12 @@ export function MobileNavBar({
                 >
                   <Icon className={cn("w-6 h-6", isActive && "fill-current")} />
                   {item.id === "quest" && hasUnclaimedQuests && (
+                    <span className="absolute -top-0.5 -right-0.5 flex h-3 w-3 z-10">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500 border-2 border-white dark:border-gray-900"></span>
+                    </span>
+                  )}
+                  {item.id === "streak" && hasUnclaimedStreak && (
                     <span className="absolute -top-0.5 -right-0.5 flex h-3 w-3 z-10">
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
                       <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500 border-2 border-white dark:border-gray-900"></span>

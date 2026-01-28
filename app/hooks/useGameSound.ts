@@ -10,7 +10,7 @@ const SOUND_FILES = {
   wrong: "/sounds/duolingo-incorrect.mp3",
   complete: "/sounds/duolingo-completed-chapter.mp3",
   gameover: "/sounds/fah.mp3",
-  claim: "/sounds/anime-wow-sound-effect.mp3",
+  claim: "/sounds/happy-happy-happy-cat.mp3",
 };
 
 export function useGameSound() {

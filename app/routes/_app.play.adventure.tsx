@@ -67,6 +67,7 @@ import { AdventureSkeleton } from "~/components/dashboardmodule/AdventureSkeleto
 import { CHAPTER_VISUALS, CSHARP_LESSONS } from "~/data/adventureContent";
 import { trackQuestEvent } from "~/lib/quest-tracker";
 import { useGameSound } from "~/hooks/useGameSound";
+import { calculateStreakUpdate } from "~/lib/streak-logic";
 
 const NODE_HEIGHT = 160;
 const NODE_GAP = 32;
@@ -379,85 +380,26 @@ function RegressModal({ open, onClose, onConfirm }: any) {
   );
 }
 
-// --- COMPONENT: REWARD MODAL (LEVEL COMPLETION) ---
-function RewardModal({ open, onClose, data }: any) {
-  const { playSound } = useGameSound();
-
-  if (!open || !data) return null;
-
+// --- COMPONENT: EXIT CONFIRMATION MODAL ---
+function ExitConfirmModal({ open, onClose, onConfirm }: any) {
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md w-full h-full sm:h-auto max-sm:rounded-none flex flex-col justify-center">
+      <DialogContent>
         <DialogHeader>
-          <div className="mx-auto w-24 h-24 bg-yellow-100 rounded-full flex items-center justify-center mb-4 border-4 border-yellow-200 animate-bounce">
-            <Trophy className="w-12 h-12 text-yellow-600" />
-          </div>
-          <DialogTitle className="text-3xl font-black text-center text-foreground">
-            Level Complete!
+          <DialogTitle className="flex items-center gap-2 text-red-600">
+            <X className="w-5 h-5" /> Exit Activity?
           </DialogTitle>
+          <DialogDescription className="pt-2">
+            If you leave now, your progress in this lesson will be lost and
+            cannot be saved.
+          </DialogDescription>
         </DialogHeader>
-
-        <div className="space-y-8 py-6">
-          <p className="text-muted-foreground text-center text-lg">
-            You've mastered <br />
-            <span className="font-bold text-foreground text-xl">
-              {data.title}
-            </span>
-          </p>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="flex flex-col items-center p-6 bg-secondary/50 rounded-2xl border-2 border-transparent hover:border-indigo-500/20 transition-colors">
-              <span className="text-4xl font-black text-indigo-500">
-                +{data.xp}
-              </span>
-              <span className="text-sm text-muted-foreground uppercase font-bold tracking-wider mt-1">
-                XP Earned
-              </span>
-            </div>
-            <div className="flex flex-col items-center p-6 bg-secondary/50 rounded-2xl border-2 border-transparent hover:border-yellow-500/20 transition-colors">
-              <span className="text-4xl font-black text-yellow-500">
-                +{data.coins}
-              </span>
-              <span className="text-sm text-muted-foreground uppercase font-bold tracking-wider mt-1">
-                Coins
-              </span>
-            </div>
-          </div>
-
-          <div className="bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-900/50 p-4 rounded-xl flex items-center justify-between">
-            <div className="text-left">
-              <p className="font-bold text-orange-700 dark:text-orange-400 text-sm">
-                {data.streakStatus === "continued"
-                  ? "Streak Continued!"
-                  : "Streak Started!"}
-              </p>
-              <p className="text-sm text-orange-600/80 dark:text-orange-400/70">
-                {data.streakStatus === "continued"
-                  ? "You're on fire! Keep it up."
-                  : "Great start. Come back tomorrow!"}
-              </p>
-            </div>
-            <div className="flex flex-col items-center">
-              <span className="text-3xl font-black text-orange-500">
-                {data.currentStreak}
-              </span>
-              <span className="text-[10px] font-bold text-orange-400 uppercase">
-                Days
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <DialogFooter className="sm:justify-center mt-auto sm:mt-0">
-          <Button
-            onClick={() => {
-              playSound("claim");
-              onClose();
-            }}
-            size="lg"
-            className="w-full font-bold text-lg h-14 rounded-xl"
-          >
-            Continue Journey
+        <DialogFooter>
+          <Button variant="ghost" onClick={onClose}>
+            Stay
+          </Button>
+          <Button variant="destructive" onClick={onConfirm}>
+            Exit Lesson
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -566,7 +508,7 @@ function FullScreenLesson({
   }, [step, isFinished, startTime]);
 
   const { hearts, loseHeart, buyHearts, timeRemaining, setIsGameOver } =
-    useHeartSystem(user);
+    useHeartSystem();
 
   const [showGameOver, setShowGameOver] = useState(false);
 
@@ -626,6 +568,24 @@ function FullScreenLesson({
     setIsGameOver(false);
   };
 
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
+
+  // Handle X button click
+  const handleCloseAttempt = () => {
+    // If in game and not finished, show confirm
+    if (step === "game" && !isFinished) {
+      setShowExitConfirm(true);
+    } else {
+      // Otherwise just close (article view or finished view)
+      onClose();
+    }
+  };
+
+  const confirmExit = () => {
+    setShowExitConfirm(false);
+    onClose();
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 50 }}
@@ -633,12 +593,18 @@ function FullScreenLesson({
       exit={{ opacity: 0, y: 50 }}
       className="fixed inset-0 z-50 bg-background flex flex-col"
     >
+      <ExitConfirmModal
+        open={showExitConfirm}
+        onClose={() => setShowExitConfirm(false)}
+        onConfirm={confirmExit}
+      />
+
       {/* HEADER */}
       <div className="pt-6 pb-2 px-4 sm:px-6 w-full max-w-5xl mx-auto flex flex-col gap-3">
         <div className="flex items-center gap-4 w-full">
           <Button
             variant="ghost"
-            onClick={onClose}
+            onClick={handleCloseAttempt}
             size="icon"
             className="shrink-0 text-muted-foreground hover:text-foreground"
           >
@@ -952,11 +918,11 @@ function FullScreenLesson({
 // --- MAIN PAGE ---
 export default function AdventurePage() {
   const navigate = useNavigate();
-  const { user, syncUser } = useAuth();
+  const { user, syncUser, refreshUser } = useAuth();
   const { grantXP } = useGameProgress();
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  const { hearts, timeRemaining, buyHearts } = useHeartSystem(user);
+  const { hearts, timeRemaining, buyHearts } = useHeartSystem();
 
   const [lessons, setLessons] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -986,7 +952,8 @@ export default function AdventurePage() {
   const [hintsUsedCount, setHintsUsedCount] = useState(0); // ADDED
 
   const [inventory, setInventory] = useState<any[]>([]);
-  const [rewardData, setRewardData] = useState<any>(null);
+
+  // const [rewardData, setRewardData] = useState<any>(null); // Removed RewardData state as RewardModal is processed
   const [showRegressConfirm, setShowRegressConfirm] = useState(false);
 
   // ✅ Check hearts BEFORE entering lesson
@@ -1006,7 +973,7 @@ export default function AdventurePage() {
     if (!user) return;
 
     try {
-      setLoading(true);
+      // setLoading(true); // <--- REMOVED to prevent flicker on refresh
 
       // 1. Fetch User Stats (Including new adventure_rewards_claimed)
       const { data: userStats, error: statsError } = await supabase
@@ -1242,6 +1209,7 @@ export default function AdventurePage() {
     setMaxCompletedOrder(0);
     setLessons((prev) => prev.map((l) => ({ ...l, isCompleted: false })));
     setShowRegressConfirm(false);
+    refreshUser(); // ✅ Refresh global stats
     toast.success("Adventure Reset! Good luck speedrunning.");
   };
 
@@ -1268,6 +1236,7 @@ export default function AdventurePage() {
         coins: (user.coins || 0) + 500,
         xp: (user.xp || 0) + 1000,
       });
+      refreshUser(); // ✅ Refresh global stats
 
       toast.success("🏆 Grand Prize Claimed!");
     } catch (err) {
@@ -1402,135 +1371,128 @@ export default function AdventurePage() {
   }, [isAdventureFinished]);
 
   const handleChapterComplete = async (timeTaken: number) => {
-    if (!selectedChapter || !user) return;
+    try {
+      if (!selectedChapter || !user) return;
 
-    const xpEarned = selectedChapter.xp_reward || 50;
-    const coinsEarned = Math.floor(xpEarned / 10);
+      // 1. Capture Data & CLOSE MODAL IMMEDIATELY
+      // We close the modal first to prevent "Article View" glitch and make it snappy.
+      const chapter = selectedChapter;
+      setSelectedChapter(null); // <--- Close UI
 
-    grantXP(xpEarned);
+      const xpEarned = chapter.xp_reward || 50;
+      const coinsEarned = Math.floor(xpEarned / 10);
 
-    // 1. Calculate Accuracy for History
-    const totalQuestions = selectedChapter.activities?.length || 0;
-    const correctAnswers = Math.max(0, totalQuestions - mistakesSet.size);
-    const accuracy =
-      totalQuestions > 0
-        ? Math.round((correctAnswers / totalQuestions) * 100)
-        : 100;
+      grantXP(xpEarned);
 
-    // --- QUEST TRACKING ---
-    // 1. Quiz Master: Answer questions correctly
-    if (correctAnswers > 0) {
-      await trackQuestEvent(user.uid, "quiz_answers", correctAnswers);
-    }
+      // 2. Calculate Accuracy for History
+      const totalQuestions = chapter.activities?.length || 0;
+      const correctAnswers = Math.max(0, totalQuestions - mistakesSet.size);
+      const accuracy =
+        totalQuestions > 0
+          ? Math.round((correctAnswers / totalQuestions) * 100)
+          : 100;
 
-    // 2. Scholar: 100% Accuracy
-    if (accuracy === 100) {
-      await trackQuestEvent(user.uid, "perfect_quizzes", 1);
-    }
-
-    // 3. Speed Runner: Complete < 60s
-    if (timeTaken < 60) {
-      await trackQuestEvent(user.uid, "speed_runs", 1);
-    }
-
-    // 4. Steady Hand: No Hints used
-    if (hintsUsedCount === 0) {
-      await trackQuestEvent(user.uid, "levels_without_hints", 1);
-    }
-    // ----------------------
-
-    // 2. Record to Match History
-    await supabase.from("match_history").insert({
-      mode: `Adventure: ${selectedChapter.title}`,
-      played_at: new Date().toISOString(),
-      winner_name: user.displayName || "Player",
-      participants_count: 1,
-      user_id: user.uid,
-      duration_seconds: timeTaken,
-      results: [
-        {
-          rank: 1,
-          name: user.displayName || "Player",
-          score: xpEarned,
-          accuracy: `${accuracy}%`,
-          time: timeTaken,
-        },
-      ],
-    });
-
-    await recordChapterCompletion(coinsEarned, selectedChapter.id, timeTaken);
-
-    // ... (Streak Logic) ...
-    const getLocalYYYYMMDD = (d: Date) => {
-      const offset = d.getTimezoneOffset() * 60000;
-      return new Date(d.getTime() - offset).toISOString().split("T")[0];
-    };
-    const today = getLocalYYYYMMDD(new Date());
-    const lastActive = user.activeDates?.[user.activeDates.length - 1];
-
-    let streakStatus: "started" | "continued" | "none" = "started";
-    let newStreak = user.streaks || 0;
-
-    if (lastActive !== today) {
-      const yesterday = new Date();
-      yesterday.setDate(yesterday.getDate() - 1);
-      const yesterdayStr = getLocalYYYYMMDD(yesterday);
-
-      if (lastActive === yesterdayStr) {
-        streakStatus = "continued";
-        newStreak += 1;
-      } else {
-        streakStatus = "started";
-        newStreak = 1;
+      // --- QUEST TRACKING ---
+      // 1. Quiz Master: Answer questions correctly
+      if (correctAnswers > 0) {
+        await trackQuestEvent(user.uid, "quiz_answers", correctAnswers);
       }
-      const newDates = [...(user.activeDates || []), today];
-      syncUser({ ...user, streaks: newStreak, activeDates: newDates });
-      await supabase
-        .from("users")
-        .update({ streaks: newStreak, active_dates: newDates })
-        .eq("id", user.uid);
-    } else {
-      streakStatus = "continued";
-    }
 
-    await supabase.from("user_lesson_progress").upsert(
-      {
+      // 2. Scholar: 100% Accuracy
+      if (accuracy === 100) {
+        await trackQuestEvent(user.uid, "perfect_quizzes", 1);
+      }
+
+      // 3. Speed Runner: Complete < 60s
+      if (timeTaken < 60) {
+        await trackQuestEvent(user.uid, "speed_runs", 1);
+      }
+
+      // 4. Steady Hand: No Hints used
+      if (hintsUsedCount === 0) {
+        await trackQuestEvent(user.uid, "levels_without_hints", 1);
+      }
+      // ----------------------
+
+      // 3. Record to Match History
+      await supabase.from("match_history").insert({
+        mode: `Adventure: ${chapter.title}`,
+        played_at: new Date().toISOString(),
+        winner_name: user.displayName || "Player",
+        participants_count: 1,
         user_id: user.uid,
-        lesson_id: selectedChapter.id,
-        status: "completed",
-        completed_at: new Date().toISOString(),
-        completion_time: timeTaken,
-      },
-      { onConflict: "user_id, lesson_id" },
-    );
+        duration_seconds: timeTaken,
+        results: [
+          {
+            rank: 1,
+            name: user.displayName || "Player",
+            score: xpEarned,
+            accuracy: `${accuracy}%`,
+            time: timeTaken,
+          },
+        ],
+      });
 
-    setRewardData({
-      title: selectedChapter.title,
-      xp: xpEarned,
-      coins: coinsEarned,
-      streakStatus: streakStatus,
-      currentStreak: newStreak,
-    });
+      await recordChapterCompletion(coinsEarned, chapter.id, timeTaken);
 
-    await loadAdventureProgress();
-    setSelectedChapter(null);
+      console.log(
+        "[AdventureDebug] Lesson Complete. Calling calculateStreakUpdate...",
+      );
+      // ... (Streak Logic - CENTRALIZED) ...
+      const streakResult = calculateStreakUpdate(user);
+      console.log("[AdventureDebug] Streak Result:", streakResult);
+
+      // We always use the new streak value, whether it updated or not
+      const newStreak = streakResult.newStreak;
+
+      // If we need to update DB (streak changed or day added)
+      if (streakResult.shouldUpdate) {
+        syncUser({
+          ...user,
+          streaks: streakResult.newStreak,
+          activeDates: streakResult.newActiveDates,
+          streakFreezes: streakResult.newFreezes,
+          frozenDates: streakResult.newFrozenDates,
+          coins: streakResult.newCoins,
+        });
+
+        await supabase
+          .from("users")
+          .update({
+            streaks: streakResult.newStreak,
+            active_dates: streakResult.newActiveDates,
+            streak_freezes: streakResult.newFreezes,
+            frozen_dates: streakResult.newFrozenDates,
+          })
+          .eq("id", user.uid);
+      }
+
+      await supabase.from("user_lesson_progress").upsert(
+        {
+          user_id: user.uid,
+          lesson_id: chapter.id,
+          status: "completed",
+          completed_at: new Date().toISOString(),
+          completion_time: timeTaken,
+        },
+        { onConflict: "user_id, lesson_id" },
+      );
+
+      // Finally refresh stats in background
+      await loadAdventureProgress();
+      refreshUser();
+    } catch (err: any) {
+      console.error("[Adventure] Critical Error:", err);
+      alert(
+        "❌ Critical Error completing lesson: " + (err.message || String(err)),
+      );
+    }
   };
 
-  if (loading)
-    return (
-      <div className="flex h-screen items-center justify-center">
-        <Loader2 className="animate-spin" />
-      </div>
-    );
+  if (loading) return <AdventureSkeleton />;
 
   return (
     <div className="min-h-screen bg-background p-6">
-      {/* 1. Level Completion Reward */}
-      <RewardModal
-        open={!!rewardData}
-        onClose={() => setRewardData(null)}
-        data={rewardData}
-      />
       {/* 2. Regress Confirm */}
       <RegressModal
         open={showRegressConfirm}

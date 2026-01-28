@@ -19,6 +19,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "~/components/ui/button";
 import { UserData } from "~/contexts/AuthContext";
 import { useQuestNotifications } from "~/hooks/useQuestNotifications";
+import { useStreakNotifications } from "~/hooks/useStreakNotifications";
 import {
   AdminIcon,
   CoinIcon,
@@ -54,6 +55,7 @@ export function Sidebar({
 
   // Notification Hook
   const { hasUnclaimedQuests } = useQuestNotifications();
+  const { hasUnclaimedStreak } = useStreakNotifications();
 
   // --- NAVIGATION CONFIGURATION ---
   const ALL_ROLES = ["superadmin", "admin", "instructor", "user"];
@@ -238,6 +240,12 @@ export function Sidebar({
                   <div className="relative">
                     <Icon className="h-6 w-6 flex-shrink-0" />
                     {item.id === "quest" && hasUnclaimedQuests && (
+                      <span className="absolute -top-0.5 -right-0.5 flex h-3 w-3 z-10">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500 border-2 border-white dark:border-gray-900"></span>
+                      </span>
+                    )}
+                    {item.id === "streak" && hasUnclaimedStreak && (
                       <span className="absolute -top-0.5 -right-0.5 flex h-3 w-3 z-10">
                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
                         <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500 border-2 border-white dark:border-gray-900"></span>

@@ -19,8 +19,9 @@ import {
   Check,
   Lock,
   Crown,
-  Zap,
   Frown,
+  Heart,
+  Repeat,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { cn } from "~/lib/utils";
@@ -31,8 +32,12 @@ import {
   StreakStatus,
   getPhDateString,
   UIVisualState,
+  calculateEffectiveStreak,
+  getRepairStatus,
+  repairStreak,
 } from "~/lib/streak-logic";
 import { FlameIcon, SnowflakeIcon } from "../ui/Icons";
+import { StreakSkeleton } from "./StreakSkeleton"; // ✅ Added Import
 
 /* --------------------------- ANIMATIONS --------------------------- */
 
@@ -54,9 +59,22 @@ const NO_DATES: string[] = [];
 export function StreakTab() {
   const { user, updateProfile } = useAuth();
 
+  // ✅ 1. SKELETON LOADING STATE
+  if (!user) {
+    return <StreakSkeleton />;
+  }
+
+  const [claimedMilestones, setClaimedMilestones] = useState<number[]>([]);
+
+  useEffect(() => {
+    if (user?.settings?.claimedMilestones) {
+      setClaimedMilestones(user.settings.claimedMilestones);
+    }
+  }, [user]);
+
   const [calendarDays, setCalendarDays] = useState<any[]>([]);
   const [currentMonth, setCurrentMonth] = useState("");
-  const [isProcessing, setIsProcessing] = useState(false);
+  const [justClaimed, setJustClaimed] = useState<any>(null); // For simplified celebration if needed
 
   // Modals
   const [selectedMilestone, setSelectedMilestone] = useState<any | null>(null);
@@ -66,7 +84,11 @@ export function StreakTab() {
     message: string;
   }>({ show: false, status: "NONE", message: "" });
 
-  const currentStreak = user?.streaks || 0;
+  // Repair State
+  const repairStatus = useMemo(() => getRepairStatus(user), [user]);
+  const [isRepairing, setIsRepairing] = useState(false);
+
+  const currentStreak = useMemo(() => calculateEffectiveStreak(user), [user]);
   const freezeCount = user?.streakFreezes || 0;
 
   // ✅ FIX 2: Use the static array to ensure reference stability
@@ -81,19 +103,59 @@ export function StreakTab() {
   /* --------------------------- MILESTONES --------------------------- */
 
   const milestonesList = Object.entries(STREAK_MILESTONES)
-    .map(([days, reward]) => ({
-      days: Number(days),
-      ...reward,
-      earned: currentStreak >= Number(days),
-    }))
+    .map(([days, reward]) => {
+      const daysNum = Number(days);
+      const isReached = currentStreak >= daysNum;
+      const isClaimed = claimedMilestones.includes(daysNum);
+
+      return {
+        days: daysNum,
+        ...reward,
+        isReached,
+        isClaimed,
+        status: isClaimed ? "claimed" : isReached ? "claimable" : "locked",
+      };
+    })
     .sort((a, b) => a.days - b.days);
+
+  const handleClaim = async (milestone: any) => {
+    if (!user || !milestone.isReached || milestone.isClaimed) return;
+
+    try {
+      const newClaimed = [...claimedMilestones, milestone.days];
+      setClaimedMilestones(newClaimed); // Optimistic
+
+      const newSettings = {
+        ...(user.settings || {}),
+        claimedMilestones: newClaimed,
+      };
+
+      const newBadges = [...(user.badges || [])];
+      if (milestone.badge && !newBadges.includes(milestone.badge)) {
+        newBadges.push(milestone.badge);
+      }
+
+      const newCoins = (user.coins || 0) + milestone.coins;
+
+      await updateProfile({
+        coins: newCoins,
+        badges: newBadges,
+        settings: newSettings,
+      });
+
+      setSelectedMilestone(milestone); // Show celebration modal
+    } catch (e) {
+      console.error("Claim failed", e);
+      // Revert optimistic update? For now just log.
+    }
+  };
 
   /* --------------------------- CALENDAR --------------------------- */
 
   useEffect(() => {
     // Generate Calendar based on PH time
     const today = new Date(
-      new Date().toLocaleString("en-US", { timeZone: "Asia/Manila" })
+      new Date().toLocaleString("en-US", { timeZone: "Asia/Manila" }),
     );
 
     setCurrentMonth(today.toLocaleString("default", { month: "long" }));
@@ -142,23 +204,22 @@ export function StreakTab() {
     todayDate,
   ]);
 
-  /* --------------------------- TEST BUTTON --------------------------- */
+  /* --------------------------- REPAIR BUTTON --------------------------- */
 
-  const handleTestStreak = async () => {
-    if (!user || isProcessing) return;
-    setIsProcessing(true);
+  const handleRepairStreak = async () => {
+    if (!user || isRepairing || !repairStatus.canRepair) return;
+    setIsRepairing(true);
 
     try {
-      const result = calculateStreakUpdate(user);
+      const result = repairStreak(user);
 
       if (!result.shouldUpdate) {
-        alert("📅 You already saved your streak today!");
-        setIsProcessing(false);
+        alert(result.messages.join(" ") || "Cannot repair streak.");
+        setIsRepairing(false);
         return;
       }
 
       await updateProfile({
-        streaks: result.newStreak,
         activeDates: result.newActiveDates,
         coins: result.newCoins,
         streakFreezes: result.newFreezes,
@@ -174,9 +235,9 @@ export function StreakTab() {
       });
     } catch (e) {
       console.error(e);
-      alert("❌ Failed to update streak.");
+      alert("❌ Failed to repair streak.");
     } finally {
-      setIsProcessing(false);
+      setIsRepairing(false);
     }
   };
 
@@ -196,22 +257,6 @@ export function StreakTab() {
             Your Streak
           </h1>
         </div>
-
-        <Button
-          variant="outline"
-          onClick={handleTestStreak}
-          disabled={isProcessing || hasPlayedToday}
-          className="gap-2"
-        >
-          {isProcessing ? (
-            "Processing..."
-          ) : (
-            <>
-              <Zap className="w-4 h-4" />
-              {hasPlayedToday ? "Streak Saved" : "Test Streak"}
-            </>
-          )}
-        </Button>
       </motion.div>
 
       {/* Main Grid */}
@@ -222,8 +267,40 @@ export function StreakTab() {
         animate="visible"
       >
         <motion.div variants={itemVariants} className="lg:col-span-2 space-y-6">
+          {repairStatus.canRepair && currentStreak === 0 && (
+            <div className="bg-red-50 dark:bg-red-900/10 border-2 border-red-200 dark:border-red-900/50 p-4 rounded-3xl flex items-center justify-between gap-4 animate-in fade-in slide-in-from-top-4">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-red-100 dark:bg-red-900/30 rounded-full animate-pulse">
+                  <Heart className="w-8 h-8 text-red-500 fill-red-500" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-red-600 dark:text-red-400">
+                    Streak Broken!
+                  </h3>
+                  <p className="text-sm text-red-500 dark:text-red-300">
+                    You missed a day. Repair it now to keep your progress!
+                  </p>
+                </div>
+              </div>
+              <Button
+                size="lg"
+                onClick={handleRepairStreak}
+                disabled={isRepairing || (user?.coins || 0) < repairStatus.cost}
+                className="bg-red-500 hover:bg-red-600 text-white font-bold rounded-xl shadow-lg shadow-red-500/30"
+              >
+                {isRepairing
+                  ? "Repairing..."
+                  : `Repair (-${repairStatus.cost} 🪙)`}
+              </Button>
+            </div>
+          )}
+
           <CurrentStreakCard streak={currentStreak} visualState={visualState} />
-          <StreakCalendarCard month={currentMonth} days={calendarDays} />
+          <StreakCalendarCard
+            month={currentMonth}
+            days={calendarDays}
+            visualState={visualState}
+          />
         </motion.div>
 
         <motion.div variants={itemVariants} className="lg:col-span-1 space-y-6">
@@ -231,6 +308,7 @@ export function StreakTab() {
           <StreakMilestonesCard
             milestones={milestonesList}
             onViewMilestone={setSelectedMilestone}
+            onClaim={handleClaim}
           />
         </motion.div>
       </motion.div>
@@ -321,20 +399,20 @@ export function StreakTab() {
               {selectedMilestone?.title}
             </DialogTitle>
             <DialogDescription className="text-center text-lg">
-              You hit a {selectedMilestone?.days} day streak!
+              You've officially reached a {selectedMilestone?.days} day streak!
             </DialogDescription>
           </DialogHeader>
 
           <div className="py-6 space-y-4">
-            <div className="flex items-center justify-center gap-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-2xl border-2 border-dashed border-gray-200 dark:border-gray-700">
+            <div className="flex items-center justify-center gap-4 p-4 bg-yellow-50 dark:bg-yellow-900/10 rounded-2xl border-2 border-yellow-200 dark:border-yellow-800 animate-in zoom-in-50 duration-300">
               <div className="flex flex-col items-center">
-                <span className="text-xs uppercase font-bold text-gray-400">
+                <span className="text-xs uppercase font-bold text-yellow-600 dark:text-yellow-400">
                   Reward
                 </span>
-                <div className="flex items-center gap-2 text-xl font-black text-yellow-500">
+                <div className="flex items-center gap-2 text-2xl font-black text-yellow-500">
                   <img
                     src="/assets/icons/coinv2.png"
-                    className="w-6 h-6"
+                    className="w-8 h-8"
                     alt="Coin"
                   />
                   +{selectedMilestone?.coins}
@@ -343,13 +421,13 @@ export function StreakTab() {
 
               {selectedMilestone?.badge && (
                 <>
-                  <div className="w-[1px] h-10 bg-gray-300 dark:bg-gray-600" />
+                  <div className="w-[1px] h-12 bg-yellow-300 dark:bg-yellow-700" />
                   <div className="flex flex-col items-center">
-                    <span className="text-xs uppercase font-bold text-gray-400">
-                      Badge
+                    <span className="text-xs uppercase font-bold text-yellow-600 dark:text-yellow-400">
+                      New Badge
                     </span>
-                    <div className="flex items-center gap-2 text-lg font-bold text-purple-500">
-                      <Award className="w-5 h-5" />
+                    <div className="flex items-center gap-2 text-xl font-bold text-purple-600 dark:text-purple-400">
+                      <Award className="w-6 h-6" />
                       Unlocked
                     </div>
                   </div>
@@ -398,11 +476,17 @@ function CurrentStreakCard({
     flameColor = "text-white fill-white";
     statusText = "❄️ Streak Frozen";
     statusIcon = <Snowflake className="w-16 h-16 drop-shadow-md text-white" />;
-  } else {
-    // Broken or At Risk
+  } else if (visualState === "PENDING") {
+    // Pending (Logged in yesterday, not today) - Grayscale
     bgColor = "bg-gray-200 dark:bg-gray-800";
     textColor = "text-gray-500 dark:text-gray-400";
     flameColor = "text-gray-400 fill-gray-400 grayscale";
+    statusText = "🔥 Continue your streak!";
+  } else {
+    // Broken - Grayscale / Gray
+    bgColor = "bg-gray-200 dark:bg-gray-800";
+    textColor = "text-gray-500 dark:text-gray-400";
+    flameColor = "text-gray-300 fill-gray-300 grayscale opacity-50";
     statusText = "⚠️ Start a streak!";
   }
 
@@ -411,7 +495,7 @@ function CurrentStreakCard({
       className={cn(
         "rounded-3xl shadow-lg overflow-hidden relative transition-all duration-500",
         bgColor,
-        textColor
+        textColor,
       )}
     >
       <div className="absolute top-0 right-0 -mt-10 -mr-10 w-40 h-40 bg-white/10 rounded-full blur-3xl" />
@@ -422,7 +506,7 @@ function CurrentStreakCard({
             "p-4 rounded-full backdrop-blur-sm shadow-inner transition-all",
             visualState === "ACTIVE" || visualState === "FROZEN"
               ? "bg-white/20"
-              : "bg-gray-300 dark:bg-gray-700"
+              : "bg-gray-300 dark:bg-gray-700",
           )}
         >
           {visualState === "FROZEN" ? (
@@ -431,7 +515,7 @@ function CurrentStreakCard({
             <Flame
               className={cn(
                 "w-16 h-16 drop-shadow-md transition-all",
-                flameColor
+                flameColor,
               )}
             />
           )}
@@ -448,7 +532,7 @@ function CurrentStreakCard({
               "inline-flex items-center px-3 py-1 rounded-full text-xs font-bold backdrop-blur-sm",
               visualState === "ACTIVE" || visualState === "FROZEN"
                 ? "bg-white/20"
-                : "bg-black/10"
+                : "bg-black/5 dark:bg-white/5",
             )}
           >
             {statusText}
@@ -459,7 +543,15 @@ function CurrentStreakCard({
   );
 }
 
-function StreakCalendarCard({ month, days }: { month: string; days: any[] }) {
+function StreakCalendarCard({
+  month,
+  days,
+  visualState,
+}: {
+  month: string;
+  days: any[];
+  visualState: UIVisualState;
+}) {
   const dayLabels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
   return (
@@ -474,12 +566,13 @@ function StreakCalendarCard({ month, days }: { month: string; days: any[] }) {
                 : "bg-gray-100 text-gray-500 dark:bg-gray-800"
             }`}
           >
-            {days.find((d) => d.isToday)?.isActive ? (
-              <Check className="w-3 h-3" />
-            ) : (
-              <Calendar className="w-3 h-3" />
-            )}
-            {days.find((d) => d.isToday)?.isActive ? "Streak Saved" : "Pending"}
+            {days.find((d) => d.isToday)?.isActive
+              ? "Streak Saved"
+              : visualState === "PENDING"
+              ? "Pending"
+              : visualState === "FROZEN"
+              ? "Frozen"
+              : "Broken"}
           </div>
         </CardTitle>
       </CardHeader>
@@ -533,7 +626,7 @@ function StreakCalendarCard({ month, days }: { month: string; days: any[] }) {
                   // Today Active Ring
                   day.isToday &&
                     day.isActive &&
-                    "ring-2 ring-offset-2 ring-orange-500 dark:ring-offset-gray-900"
+                    "ring-2 ring-offset-2 ring-orange-500 dark:ring-offset-gray-900",
                 )}
               >
                 {!day.isPadding && <span>{day.day}</span>}
@@ -585,74 +678,124 @@ function StreakInventoryCard({ freezeCount }: { freezeCount: number }) {
 function StreakMilestonesCard({
   milestones,
   onViewMilestone,
+  onClaim,
 }: {
   milestones: any[];
   onViewMilestone: (m: any) => void;
+  onClaim: (m: any) => void;
 }) {
   return (
-    <Card className="bg-white dark:bg-gray-900 shadow-sm border border-gray-100 dark:border-gray-800 rounded-3xl">
-      <CardHeader>
-        <CardTitle className="text-lg font-bold">Next Goals</CardTitle>
+    <Card className="bg-white dark:bg-gray-900 shadow-sm border border-gray-100 dark:border-gray-800 rounded-3xl overflow-hidden">
+      <CardHeader className="border-b border-gray-50 dark:border-gray-800 pb-3">
+        <CardTitle className="text-lg font-bold flex items-center gap-2">
+          <Crown className="w-5 h-5 text-yellow-500" /> Goal Roadmap
+        </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-3">
-        {milestones.map((milestone: any) => {
-          return (
-            <div
-              key={milestone.days}
-              onClick={() => milestone.earned && onViewMilestone(milestone)}
-              className={cn(
-                "flex items-center justify-between p-3 rounded-xl transition-all border",
-                milestone.earned
-                  ? "bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800 cursor-pointer hover:scale-[1.02]"
-                  : "bg-gray-50 dark:bg-gray-800/50 border-transparent opacity-70"
-              )}
-            >
-              <div className="flex items-center gap-3">
-                <div
-                  className={cn(
-                    "p-2 rounded-lg",
-                    milestone.earned
-                      ? "bg-yellow-100 dark:bg-yellow-800 text-yellow-600 dark:text-yellow-400"
-                      : "bg-gray-200 dark:bg-gray-700 text-gray-400"
-                  )}
-                >
-                  {milestone.earned ? (
-                    <Crown className="w-5 h-5" />
-                  ) : (
-                    <Lock className="w-5 h-5" />
-                  )}
-                </div>
-                <div>
+      <CardContent className="p-0">
+        <div className="divide-y divide-gray-100 dark:divide-gray-800">
+          {milestones.map((milestone: any, index: number) => {
+            const isClaimable = milestone.status === "claimable";
+            const isClaimed = milestone.status === "claimed";
+            const isLocked = milestone.status === "locked";
+
+            return (
+              <div
+                key={milestone.days}
+                className={cn(
+                  "p-4 flex items-center gap-4 transition-all relative",
+                  isClaimable && "bg-yellow-50/50 dark:bg-yellow-900/10",
+                )}
+              >
+                {/* Progress Line Connector */}
+                {index !== milestones.length - 1 && (
                   <div
                     className={cn(
-                      "font-bold text-sm",
-                      milestone.earned
-                        ? "text-yellow-900 dark:text-yellow-100"
-                        : "text-gray-500"
+                      "absolute left-[31px] top-8 bottom-[-34px] w-0.5 z-0",
+                      isClaimed || isClaimable
+                        ? "bg-yellow-500"
+                        : "bg-gray-200 dark:bg-gray-700",
+                    )}
+                  />
+                )}
+
+                {/* Status Icon */}
+                <div className="relative z-10 w-8 h-8 flex-shrink-0 flex items-center justify-center rounded-full bg-white dark:bg-gray-900 border-2 transition-colors duration-300">
+                  <div
+                    className={cn(
+                      "w-8 h-8 rounded-full flex items-center justify-center border-2",
+                      isClaimed
+                        ? "bg-yellow-100 border-yellow-500 text-yellow-600 dark:bg-yellow-900 dark:border-yellow-500 dark:text-yellow-400"
+                        : isClaimable
+                        ? "bg-white border-yellow-500 text-yellow-500 animate-pulse shadow-[0_0_10px_rgba(234,179,8,0.5)]"
+                        : "bg-gray-100 border-gray-200 text-gray-400 dark:bg-gray-800 dark:border-gray-700",
                     )}
                   >
-                    {milestone.days}-Day Streak
+                    {isClaimed ? (
+                      <Check className="w-4 h-4" />
+                    ) : isClaimable ? (
+                      <Flame className="w-4 h-4 fill-yellow-500" />
+                    ) : (
+                      <Lock className="w-3 h-3" />
+                    )}
                   </div>
-                  {milestone.earned && (
-                    <div className="text-[10px] font-bold text-yellow-600 uppercase">
-                      Completed
+                </div>
+
+                {/* Content */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between mb-0.5">
+                    <h4
+                      className={cn(
+                        "font-bold text-sm",
+                        isLocked
+                          ? "text-gray-400 dark:text-gray-500"
+                          : "text-gray-900 dark:text-white",
+                      )}
+                    >
+                      {milestone.days}-Day Streak
+                    </h4>
+                    {!isClaimed && !isLocked && (
+                      <div className="flex items-center gap-1 text-[10px] font-black uppercase text-yellow-600 bg-yellow-100 dark:bg-yellow-900/30 dark:text-yellow-400 px-1.5 py-0.5 rounded">
+                        +{milestone.coins}
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-500 truncate">
+                    {milestone.title}
+                  </p>
+                </div>
+
+                {/* Action */}
+                <div>
+                  {isClaimable ? (
+                    <Button
+                      size="sm"
+                      onClick={() => onClaim(milestone)}
+                      className="bg-yellow-500 hover:bg-yellow-600 text-white font-bold h-8 px-3 rounded-lg shadow-lg shadow-yellow-500/20 active:scale-95 transition-all animate-bounce-subtle"
+                    >
+                      Claim
+                    </Button>
+                  ) : isClaimed ? (
+                    <span
+                      onClick={() => onViewMilestone(milestone)}
+                      className="text-xs font-bold text-green-500 uppercase tracking-wider cursor-pointer hover:underline"
+                    >
+                      View
+                    </span>
+                  ) : (
+                    <div className="flex items-center gap-1 text-xs font-bold text-gray-300 dark:text-gray-600">
+                      <img
+                        src="/assets/icons/coinv2.png"
+                        className="w-3 h-3 grayscale opacity-50"
+                        alt=""
+                      />
+                      {milestone.coins}
                     </div>
                   )}
                 </div>
               </div>
-
-              {/* Reward Pill */}
-              <div className="flex items-center gap-1 bg-white dark:bg-black/20 px-2 py-1 rounded-lg text-xs font-bold text-gray-500">
-                <img
-                  src="/assets/icons/coinv2.png"
-                  className="w-3 h-3"
-                  alt="Coin"
-                />
-                {milestone.coins}
-              </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </CardContent>
     </Card>
   );

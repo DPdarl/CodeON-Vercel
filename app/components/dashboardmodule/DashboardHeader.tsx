@@ -29,8 +29,9 @@ import {
 } from "lucide-react";
 import { AvatarDisplay } from "./AvatarDisplay";
 import { calculateProgress } from "~/lib/leveling-system";
-import { CoinIcon, FlameIcon, HeartIcon } from "../ui/Icons";
+import { CoinIcon, FlameIcon, HeartIcon, StreakPendingIcon } from "../ui/Icons";
 import { useHeartSystem, MAX_HEARTS, HEART_COST } from "~/hooks/useHeartSystem";
+import { calculateEffectiveStreak, getStreakState } from "~/lib/streak-logic";
 
 // ... (StatItem Component - Keep exactly as is) ...
 interface StatItemProps {
@@ -139,7 +140,10 @@ export function DashboardHeader({
 }: DashboardHeaderProps) {
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
   const { currentLevel, progressPercent } = calculateProgress(user?.xp || 0);
-  const { hearts, timeRemaining, buyHearts } = useHeartSystem(user);
+  const { hearts, timeRemaining, buyHearts } = useHeartSystem();
+
+  const effectiveStreak = calculateEffectiveStreak(user);
+  const streakState = getStreakState(user);
 
   const radius = 28;
   const center = 32;
@@ -186,8 +190,19 @@ export function DashboardHeader({
               </div>
               <div className="h-6 w-px bg-gray-300 dark:bg-gray-700 hidden sm:block" />
               <StatItem
-                icon={<FlameIcon className="h-6 w-5" />}
-                value={stats.streaks}
+                icon={
+                  streakState === "PENDING" || streakState === "BROKEN" ? (
+                    <StreakPendingIcon className="h-6 w-5 opacity-50 grayscale" />
+                  ) : (
+                    <FlameIcon className="h-6 w-5" />
+                  )
+                }
+                value={effectiveStreak}
+                color={
+                  streakState === "PENDING" || streakState === "BROKEN"
+                    ? "text-gray-400"
+                    : undefined
+                }
               />
               <StatItem
                 icon={<CoinIcon className="h-6 w-6" />}

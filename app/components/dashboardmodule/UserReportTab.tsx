@@ -77,7 +77,7 @@ export function UserReportTab() {
 
     exportToCSV(
       exportData,
-      `Student_Report_${sectionFilter.replace(" ", "_")}`
+      `Student_Report_${sectionFilter.replace(" ", "_")}`,
     );
     toast.success("Report downloaded successfully");
   };
@@ -138,7 +138,8 @@ export function UserReportTab() {
       </CardHeader>
 
       <CardContent>
-        <div className="rounded-md border border-gray-200 dark:border-gray-800 overflow-hidden">
+        {/* DESKTOP TABLE VIEW */}
+        <div className="hidden md:block rounded-md border border-gray-200 dark:border-gray-800 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm text-left">
               <thead className="bg-gray-100 dark:bg-gray-800 font-medium text-gray-700 dark:text-gray-300">
@@ -217,6 +218,85 @@ export function UserReportTab() {
               </tbody>
             </table>
           </div>
+        </div>
+
+        {/* MOBILE CARD VIEW */}
+        <div className="md:hidden space-y-4">
+          {loading ? (
+            <div className="p-8 text-center">
+              <Loader2 className="animate-spin mx-auto" />
+            </div>
+          ) : filteredStudents.length === 0 ? (
+            <div className="p-8 text-center text-gray-500 bg-gray-50 dark:bg-gray-900 rounded-lg border border-dashed">
+              No records found.
+            </div>
+          ) : (
+            filteredStudents.map((s) => (
+              <div
+                key={s.id}
+                className="p-4 border rounded-xl bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 shadow-sm"
+              >
+                {/* Header */}
+                <div className="flex justify-between items-start mb-3">
+                  <div>
+                    <h3 className="font-bold text-gray-900 dark:text-white">
+                      {s.display_name}
+                    </h3>
+                    <div className="text-xs text-gray-500 mt-1">
+                      {s.student_id} • {s.section}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="font-mono text-indigo-600 dark:text-indigo-400 font-bold">
+                      Lvl {Math.floor((s.xp || 0) / 1000) + 1}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {s.xp?.toLocaleString()} XP
+                    </div>
+                  </div>
+                </div>
+
+                {/* Vertical Stats */}
+                <div className="space-y-3 pt-3 border-t border-gray-100 dark:border-gray-800">
+                  {/* Adventure */}
+                  <div>
+                    <div className="flex justify-between text-xs mb-1">
+                      <span className="text-gray-500">Adventure</span>
+                      <span className="font-medium">
+                        {s.adventure_progress}%
+                      </span>
+                    </div>
+                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                      <div
+                        className="bg-green-500 h-2 rounded-full"
+                        style={{ width: `${s.adventure_progress}%` }}
+                      ></div>
+                    </div>
+                  </div>
+
+                  {/* MP & Stars */}
+                  <div className="flex items-center gap-3">
+                    <div className="flex-1 bg-blue-50 dark:bg-blue-900/10 rounded-lg p-2 flex items-center justify-between border border-blue-100 dark:border-blue-900/30">
+                      <span className="text-xs text-blue-700 dark:text-blue-300">
+                        PVP Wins
+                      </span>
+                      <span className="font-bold text-blue-700 dark:text-blue-300">
+                        {s.mp_wins}
+                      </span>
+                    </div>
+                    <div className="flex-1 bg-yellow-50 dark:bg-yellow-900/10 rounded-lg p-2 flex items-center justify-between border border-yellow-100 dark:border-yellow-900/30">
+                      <span className="text-xs text-yellow-700 dark:text-yellow-500">
+                        Stars
+                      </span>
+                      <span className="font-bold text-yellow-700 dark:text-yellow-500">
+                        {s.challenge_stars}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </CardContent>
     </Card>

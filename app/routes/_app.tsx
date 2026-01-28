@@ -7,6 +7,7 @@ import { DashboardHeader } from "~/components/dashboardmodule/DashboardHeader";
 import { MobileHeader } from "~/components/mobile/MobileHeader";
 import { MobileNavBar } from "~/components/mobile/MobileNavBar";
 import { Loader2 } from "lucide-react";
+import { LoadingScreen } from "~/components/ui/LoadingScreen";
 
 export default function AppLayout() {
   const { user, loading, logout } = useAuth();
@@ -143,11 +144,7 @@ export default function AppLayout() {
   }, [user, loading, navigate]);
 
   if (loading) {
-    return (
-      <div className="h-screen w-full flex items-center justify-center bg-background">
-        <Loader2 className="h-10 w-10 animate-spin text-primary" />
-      </div>
-    );
+    return <LoadingScreen />;
   }
 
   if (!user) return null;

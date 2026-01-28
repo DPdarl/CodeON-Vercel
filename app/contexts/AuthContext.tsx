@@ -42,6 +42,7 @@ export interface UserData {
   completedChapters?: string[];
   questStats?: any;
   claimedQuests?: string[];
+  frozenDates?: string[]; // Added frozenDates
 }
 
 interface AuthContextType {
@@ -104,6 +105,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       completedChapters: db.completed_chapters ?? [],
       questStats: db.stats ?? {},
       claimedQuests: db.claimed_quests ?? [],
+      frozenDates: db.frozen_dates ?? [],
     }),
     [],
   );
@@ -152,6 +154,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if ("questStats" in db) {
       db.stats = db.questStats;
       delete db.questStats;
+    }
+
+    if ("frozenDates" in db) {
+      db.frozen_dates = db.frozenDates;
+      delete db.frozenDates;
     }
 
     delete db.uid;

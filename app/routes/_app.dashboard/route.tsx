@@ -13,6 +13,7 @@ import { HomeTab } from "~/components/dashboardmodule/HomeTab";
 import { useAuth, type UserData } from "~/contexts/AuthContext";
 import { supabase } from "~/lib/supabase";
 import { Skeleton } from "~/components/ui/skeleton";
+import { StreakChecker } from "~/components/dashboardmodule/StreakChecker";
 
 // --- LOADER ---
 export async function clientLoader({ request }: ClientLoaderFunctionArgs) {
@@ -131,6 +132,7 @@ export default function Dashboard() {
             if (tab === "play") navigate("/play");
           }}
         />
+        <StreakChecker />
       </div>
     </div>
   );

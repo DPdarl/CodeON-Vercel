@@ -181,8 +181,8 @@ export function MatchHistoryTab() {
 
       <CardContent className="flex-1 overflow-hidden p-0">
         <div className="border-t border-gray-200 dark:border-gray-800">
-          {/* SCROLLABLE CONTAINER (Fixed Height) */}
-          <div className="h-[500px] overflow-y-auto custom-scrollbar">
+          {/* DESKTOP TABLE VIEW */}
+          <div className="hidden md:block h-[500px] overflow-y-auto custom-scrollbar">
             <table className="w-full text-sm text-left relative">
               {/* STICKY HEADER */}
               <thead className="sticky top-0 z-10 bg-gray-100 dark:bg-gray-800 font-medium text-gray-700 dark:text-gray-300 shadow-sm">
@@ -334,6 +334,116 @@ export function MatchHistoryTab() {
                 )}
               </tbody>
             </table>
+          </div>
+
+          {/* MOBILE CARD VIEW */}
+          <div className="md:hidden space-y-4 pt-4">
+            {loading ? (
+              <div className="p-8 text-center text-gray-500">
+                <Loader2 className="animate-spin mx-auto mb-2" />
+                Loading...
+              </div>
+            ) : filteredMatches.length === 0 ? (
+              <div className="p-8 text-center text-gray-500 border rounded-lg bg-gray-50 dark:bg-gray-900 border-dashed">
+                <div className="flex flex-col items-center gap-2">
+                  <AlertCircle className="w-8 h-8 opacity-20" />
+                  <p>No matches found.</p>
+                </div>
+              </div>
+            ) : (
+              filteredMatches.map((match) => {
+                const isAdventure = match.mode
+                  .toLowerCase()
+                  .includes("adventure");
+                const accuracy = getAccuracy(match);
+
+                return (
+                  <div
+                    key={match.id}
+                    className="p-4 border rounded-xl bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 shadow-sm"
+                  >
+                    {/* Header: Mode & Download */}
+                    <div className="flex justify-between items-start mb-3">
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={`p-2 rounded-lg shrink-0 ${
+                            isAdventure
+                              ? "bg-orange-100 text-orange-600 dark:bg-orange-900/30"
+                              : "bg-purple-100 text-purple-600 dark:bg-purple-900/30"
+                          }`}
+                        >
+                          {isAdventure ? (
+                            <MapIcon className="w-5 h-5" />
+                          ) : (
+                            <Gamepad2 className="w-5 h-5" />
+                          )}
+                        </div>
+                        <div>
+                          <h3 className="font-bold text-gray-900 dark:text-white leading-tight">
+                            {match.mode}
+                          </h3>
+                          <p className="text-xs font-mono text-gray-500 dark:text-gray-400 mt-1">
+                            {new Date(match.played_at).toLocaleDateString()}
+                          </p>
+                        </div>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => handleExportMatch(match)}
+                        className="h-8 w-8 -mr-2 -mt-2"
+                      >
+                        <Download className="w-4 h-4" />
+                      </Button>
+                    </div>
+
+                    {/* Stats Grid */}
+                    <div className="grid grid-cols-2 gap-2 mb-3">
+                      <div className="bg-gray-50 dark:bg-gray-800/50 p-2 rounded-lg">
+                        <span className="text-xs text-gray-500 block">
+                          Duration
+                        </span>
+                        <span className="font-mono font-medium text-sm">
+                          {formatDuration(match.duration_seconds)}
+                        </span>
+                      </div>
+                      <div className="bg-gray-50 dark:bg-gray-800/50 p-2 rounded-lg">
+                        <span className="text-xs text-gray-500 block">
+                          Accuracy
+                        </span>
+                        <span className="font-mono font-medium text-sm text-green-600 dark:text-green-400">
+                          {accuracy}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Footer: Winner */}
+                    <div className="flex justify-between items-center pt-3 border-t border-gray-100 dark:border-gray-800">
+                      <span className="text-xs text-gray-500 flex items-center gap-1">
+                        <Clock className="w-3 h-3" />
+                        {new Date(match.played_at).toLocaleTimeString([], {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </span>
+                      {match.winner_name && (
+                        <Badge
+                          variant="outline"
+                          className={`gap-1 border ${
+                            isAdventure
+                              ? "bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-400"
+                              : "bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-900/20 dark:text-yellow-400"
+                          }`}
+                        >
+                          <Trophy className="w-3 h-3" />{" "}
+                          {isAdventure ? "Completed" : match.winner_name}
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
         </div>
       </CardContent>

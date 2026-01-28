@@ -245,7 +245,7 @@ export function AdventureResults({
           className="w-full h-14 text-lg font-bold bg-indigo-600 hover:bg-indigo-700 hover:scale-[1.02] transition-all shadow-xl shadow-indigo-500/20"
           onClick={onContinue}
         >
-          Continue <ArrowRight className="w-5 h-5 ml-2" />
+          Claim Rewards <ArrowRight className="w-5 h-5 ml-2" />
         </Button>
 
         <Button

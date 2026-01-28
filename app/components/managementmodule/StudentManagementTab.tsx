@@ -93,7 +93,7 @@ export function StudentManagementTab() {
 
   // Tracking approval
   const [approvingRequestId, setApprovingRequestId] = useState<string | null>(
-    null
+    null,
   );
 
   // Form UI
@@ -202,7 +202,7 @@ export function StudentManagementTab() {
           <span className="text-xs">
             Pass: <span className="font-mono">{formData.password}</span>
           </span>
-        </div>
+        </div>,
       );
 
       handleCloseAddModal();
@@ -359,7 +359,7 @@ export function StudentManagementTab() {
   const filteredStudents = students.filter(
     (s) =>
       s.display_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      s.student_id?.toLowerCase().includes(searchQuery.toLowerCase())
+      s.student_id?.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
   const pendingCount = requests.filter((r) => !r.is_approved).length;
@@ -431,7 +431,8 @@ export function StudentManagementTab() {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="rounded-md border border-gray-200 dark:border-gray-800 overflow-hidden">
+              {/* DESKTOP TABLE VIEW */}
+              <div className="hidden md:block rounded-md border border-gray-200 dark:border-gray-800 overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm text-left">
                     <thead className="bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700">
@@ -450,7 +451,10 @@ export function StudentManagementTab() {
                             colSpan={5}
                             className="p-4 text-center text-gray-500"
                           >
-                            Loading...
+                            <div className="flex justify-center items-center gap-2">
+                              <Loader2 className="animate-spin h-4 w-4" />
+                              Loading...
+                            </div>
                           </td>
                         </tr>
                       ) : filteredStudents.length === 0 ? (
@@ -518,6 +522,78 @@ export function StudentManagementTab() {
                   </table>
                 </div>
               </div>
+
+              {/* MOBILE CARD VIEW */}
+              <div className="md:hidden space-y-4">
+                {isLoading ? (
+                  <div className="p-8 text-center text-gray-500">
+                    <Loader2 className="animate-spin mx-auto mb-2" />
+                    Loading...
+                  </div>
+                ) : filteredStudents.length === 0 ? (
+                  <div className="p-8 text-center text-gray-500 border rounded-lg bg-gray-50 dark:bg-gray-900 border-dashed">
+                    No students found.
+                  </div>
+                ) : (
+                  filteredStudents.map((s) => (
+                    <div
+                      key={s.id}
+                      className="p-4 border rounded-xl bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 shadow-sm"
+                    >
+                      <div className="flex justify-between items-start mb-3">
+                        <div>
+                          <h3 className="font-bold text-gray-900 dark:text-white">
+                            {s.display_name}
+                          </h3>
+                          <p className="text-xs font-mono text-gray-500 dark:text-gray-400 mt-1">
+                            {s.student_id}
+                          </p>
+                        </div>
+                        {canManage && (
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 -mr-2 -mt-2"
+                              >
+                                <MoreVertical className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem
+                                onClick={() => openEditModal(s)}
+                              >
+                                <Pencil className="mr-2 h-4 w-4" /> Edit
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                className="text-red-600"
+                                onClick={() => {
+                                  setSelectedStudent(s);
+                                  setIsDeleteOpen(true);
+                                }}
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" /> Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-2 mb-2">
+                        <Badge variant="outline" className="text-xs">
+                          {s.section}
+                        </Badge>
+                      </div>
+
+                      <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 border-t pt-3 mt-3 border-gray-100 dark:border-gray-800">
+                        <CalendarDays className="w-3 h-3" />
+                        Birthdate: {s.birthdate || "Not set"}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -539,7 +615,7 @@ export function StudentManagementTab() {
                   {requests.map((req) => (
                     <div
                       key={req.id}
-                      className={`flex items-center justify-between p-4 border rounded-xl shadow-sm transition-all ${
+                      className={`flex flex-col md:flex-row md:items-center justify-between p-4 border rounded-xl shadow-sm transition-all gap-4 ${
                         req.is_approved
                           ? "bg-gray-100 dark:bg-gray-800/50 border-gray-200 dark:border-gray-800 opacity-70"
                           : "bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800"

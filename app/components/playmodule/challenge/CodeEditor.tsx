@@ -1,199 +1,103 @@
 // app/components/challenge/CodeEditor.tsx
 import React from "react";
 import { Editor, OnMount } from "@monaco-editor/react";
-import * as monaco from "monaco-editor";
 import { useChallengeContext } from "~/contexts/ChallengeContext";
+import { setupCSharp } from "~/utils/monaco-csharp";
+import { Play } from "lucide-react";
+import { lintCode } from "~/utils/linter";
 
-// --- C# Language Setup ---
-const setupCSharp: OnMount = (editor, monacoInstance) => {
-  // Register C# language (if not already done)
-  const languages = monacoInstance.languages.getLanguages();
-  if (!languages.some((lang) => lang.id === "csharp")) {
-    monacoInstance.languages.register({ id: "csharp" });
+interface CodeEditorProps {
+  className?: string;
+}
 
-    // Paste your entire 'setMonarchTokensProvider' object here
-    // from your original 'CodeEditor.jsx' file.
-    monacoInstance.languages.setMonarchTokensProvider("csharp", {
-      // ... (Your entire 'tokenizer', 'keywords', 'operators', etc.)
-      // This object is very large, so I'm omitting it for brevity
-      // Just paste your original Monarch tokens provider object here
-      defaultToken: "",
-      tokenPostfix: ".cs",
-      keywords: [
-        "abstract",
-        "as",
-        "base",
-        "bool",
-        "break",
-        "byte",
-        "case",
-        // ... all your keywords
-        "while",
-      ],
-      typeKeywords: [
-        "bool",
-        "byte",
-        "char",
-        "decimal",
-        "double",
-        "float",
-        "int",
-        "long",
-        "sbyte",
-        "short",
-        "uint",
-        "ulong",
-        "ushort",
-        "void",
-      ],
-      operators: [
-        "=",
-        ">",
-        "<",
-        "!",
-        "~",
-        "?",
-        ":",
-        "==",
-        "<=",
-        ">=",
-        "!=",
-        // ... all your operators
-        ">>=",
-        ">>>=",
-      ],
-      symbols: /[=><!~?:&|+\-*\/\^%]+/,
-      escapes:
-        /\\(?:[abfnrtv\\"']|x[0-9A-Fa-f]{1,4}|u[0-9A-Fa-f]{4}|U[0-9A-Fa-f]{8})/,
-      tokenizer: {
-        root: [
-          // ... all your tokenizer rules
-          [/'/, "string.invalid"],
-        ],
-        string: [
-          [/[^\\"]+/, "string"],
-          [/@escapes/, "string.escape"],
-          [/\\./, "string.escape.invalid"],
-          [/"/, { token: "string.quote", bracket: "@close", next: "@pop" }],
-        ],
-        whitespace: [
-          [/[ \t\r\n]+/, "white"],
-          [/\/\*/, "comment", "@comment"],
-          [/\/\/.*$/, "comment"],
-        ],
-        comment: [
-          [/[^\/*]+/, "comment"],
-          [/\/\*/, "comment.invalid"],
-          [/\*\//, "comment", "@pop"],
-          [/[\/*]/, "comment"],
-        ],
-      }, // end tokenizer
-    });
-
-    // ▼▼▼ START OF FIX ▼▼▼
-
-    // Define C# snippets
-    monacoInstance.languages.registerCompletionItemProvider("csharp", {
-      provideCompletionItems: (model, position) => {
-        // Get the "word" at the current position
-        const word = model.getWordAtPosition(position);
-
-        // Create a range for the suggestion
-        // This will replace the current word or insert at the cursor
-        const range = {
-          startLineNumber: position.lineNumber,
-          startColumn: word ? word.startColumn : position.column,
-          endLineNumber: position.lineNumber,
-          endColumn: word ? word.endColumn : position.column,
-        };
-
-        // Define the snippets
-        const snippetSuggestions = [
-          {
-            label: "class",
-            kind: monacoInstance.languages.CompletionItemKind.Snippet,
-            insertText: ["class ${1:MyClass}", "{", "\t${0}", "}"].join("\n"),
-            documentation: "Create a new class",
-            insertTextRules:
-              monacoInstance.languages.CompletionItemInsertTextRule
-                .InsertAsSnippet,
-            range: range, // Add the required range
-          },
-          {
-            label: "Console",
-            kind: monacoInstance.languages.CompletionItemKind.Snippet,
-            insertText: 'Console.WriteLine("${1:message}");',
-            documentation: "Console.WriteLine",
-            insertTextRules:
-              monacoInstance.languages.CompletionItemInsertTextRule
-                .InsertAsSnippet,
-            range: range, // Add the required range
-          },
-          {
-            label: "for",
-            kind: monacoInstance.languages.CompletionItemKind.Snippet,
-            insertText: [
-              "for (int ${1:i} = 0; ${1:i} < ${2:length}; ${1:i}++)",
-              "{",
-              "\t${0}",
-              "}",
-            ].join("\n"),
-            documentation: "For loop",
-            insertTextRules:
-              monacoInstance.languages.CompletionItemInsertTextRule
-                .InsertAsSnippet,
-            range: range, // Add the required range
-          },
-        ];
-
-        return {
-          suggestions: snippetSuggestions,
-        };
-      },
-    });
-
-    // ▲▲▲ END OF FIX ▲▲▲
-  }
-
-  // Add custom command (Ctrl+Enter to run)
-  editor.addCommand(
-    monacoInstance.KeyMod.CtrlCmd | monacoInstance.KeyCode.Enter,
-    () => {
-      console.log("Execute code (Ctrl+Enter)");
-    }
-  );
-};
-// --- End C# Language Setup ---
-
-const CodeEditor = () => {
-  const { code, setCode, currentChallenge, handleRun } = useChallengeContext();
+const CodeEditor = ({ className }: CodeEditorProps) => {
+  const { code, setCode, currentChallenge, handleRun, diagnostics } =
+    useChallengeContext();
+  const editorRef = React.useRef<any>(null);
+  const monacoRef = React.useRef<any>(null);
 
   const handleEditorDidMount: OnMount = (editor, monacoInstance) => {
-    // Run the C# language setup
+    editorRef.current = editor;
+    monacoRef.current = monacoInstance;
     setupCSharp(editor, monacoInstance);
 
-    // Re-add the command, this time with access to the `handleRun` function
     editor.addCommand(
       monacoInstance.KeyMod.CtrlCmd | monacoInstance.KeyCode.Enter,
       () => {
         handleRun();
-      }
+      },
     );
   };
 
+  // Sync compiler diagnostics AND local linting to editor markers
+  React.useEffect(() => {
+    if (!editorRef.current || !monacoRef.current) return;
+
+    const model = editorRef.current.getModel();
+
+    // Server-side Diagnostics
+    const serverMarkers = diagnostics.map((d) => ({
+      startLineNumber: d.line,
+      startColumn: d.column,
+      endLineNumber: d.line,
+      endColumn: d.column + 5,
+      message: `[${d.source}] ${d.message}`,
+      severity: monacoRef.current.MarkerSeverity.Error,
+    }));
+
+    // Debounced Local Linting
+    const timer = setTimeout(() => {
+      const lintErrors = lintCode(code);
+      const localMarkers = lintErrors.map((err) => ({
+        startLineNumber: err.line,
+        startColumn: err.col,
+        endLineNumber: err.line,
+        endColumn: err.col + (err.length || 1),
+        message: err.message,
+        severity:
+          err.severity === "error"
+            ? monacoRef.current.MarkerSeverity.Error
+            : monacoRef.current.MarkerSeverity.Warning,
+      }));
+
+      monacoRef.current.editor.setModelMarkers(model, "csharp", [
+        ...serverMarkers,
+        ...localMarkers,
+      ]);
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [diagnostics, code]);
+
   return (
-    <div className="bg-gray-800 rounded-lg shadow-lg mt-4 flex flex-col h-[400px]">
-      <div className="px-4 pt-4 pb-2 border-b border-gray-700">
-        <div className="flex justify-between items-center">
-          <h3 className="text-lg font-semibold text-blue-400">
-            {currentChallenge?.title || "C# Editor"}
-          </h3>
-          <span className="text-xs bg-gray-700 text-gray-300 px-2 py-1 rounded">
-            C# {currentChallenge?.requiredVersion || "8.0"}
+    <div
+      className={`flex flex-col h-full bg-[#1E1E1E] rounded-none overflow-hidden border-b border-gray-800 ${className}`}
+    >
+      {/* Editor Header */}
+      <div className="flex items-center justify-between px-4 py-2 bg-[#252526] border-b border-gray-800">
+        <div className="flex items-center gap-2">
+          <div className="flex gap-1.5">
+            <div className="w-3 h-3 rounded-full bg-red-500/80" />
+            <div className="w-3 h-3 rounded-full bg-yellow-500/80" />
+            <div className="w-3 h-3 rounded-full bg-green-500/80" />
+          </div>
+          <span className="ml-4 text-xs font-medium text-gray-400 font-mono">
+            {currentChallenge?.title
+              ? `${currentChallenge.title.replace(/\s+/g, "")}.cs`
+              : "Solution.cs"}
           </span>
         </div>
+
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-gray-500">
+            C# {currentChallenge?.requiredVersion || "8.0"}
+          </span>
+          {/* Internal Run Button Moved to Footer */}
+        </div>
       </div>
-      <div className="flex-grow">
+
+      {/* Editor Area */}
+      <div className="flex-grow relative">
         <Editor
           height="100%"
           language="csharp"
@@ -202,18 +106,21 @@ const CodeEditor = () => {
           onChange={(value) => setCode(value || "")}
           onMount={handleEditorDidMount}
           options={{
-            automaticLayout: true,
-            minimap: { enabled: false },
+            fontFamily: "'Fira Code', 'Cascadia Code', Consolas, monospace",
             fontSize: 14,
+            lineHeight: 24,
+            minimap: { enabled: false },
             scrollBeyondLastLine: false,
             roundedSelection: true,
-            padding: { top: 10 },
+            padding: { top: 16, bottom: 16 },
+            cursorBlinking: "smooth",
+            cursorSmoothCaretAnimation: "on",
+            smoothScrolling: true,
             renderWhitespace: "selection",
             wordWrap: "on",
             suggest: {
               snippetsPreventQuickSuggestions: false,
             },
-            snippetSuggestions: "top",
           }}
         />
       </div>

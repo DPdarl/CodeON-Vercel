@@ -168,6 +168,11 @@ export function HomeTab({ onTabChange, isActive = true }: HomeTabProps) {
     adventureBtnText = "Resume Journey";
   }
 
+  // ✅ SKELETON LOADING
+  if (loading && !challenges.length) {
+    return <HomeSkeleton />;
+  }
+
   return (
     <div className="max-w-6xl mx-auto space-y-8 pb-12">
       <LevelUpModal
@@ -372,9 +377,7 @@ export function HomeTab({ onTabChange, isActive = true }: HomeTabProps) {
           <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/5 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none" />
 
           <div className="relative z-10">
-            {loading ? (
-              <HomeSkeleton />
-            ) : challenges.length > 0 ? (
+            {challenges.length > 0 ? (
               <SelectionCarousel
                 challenges={challenges}
                 onSelectChallenge={handleSelectChallenge}

@@ -133,7 +133,7 @@ export function AdminManagementTab() {
           <span className="text-xs">
             Password: <span className="font-mono">{formData.password}</span>
           </span>
-        </div>
+        </div>,
       );
 
       setIsAddOpen(false);
@@ -233,7 +233,7 @@ export function AdminManagementTab() {
   const filteredAdmins = admins.filter(
     (a) =>
       a.display_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      a.student_id?.toLowerCase().includes(searchQuery.toLowerCase())
+      a.student_id?.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
   return (
@@ -280,7 +280,8 @@ export function AdminManagementTab() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="rounded-md border border-gray-200 dark:border-gray-800 overflow-hidden">
+          {/* DESKTOP TABLE VIEW */}
+          <div className="hidden md:block rounded-md border border-gray-200 dark:border-gray-800 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm text-left">
                 <thead className="bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700">
@@ -298,7 +299,10 @@ export function AdminManagementTab() {
                   {isLoading ? (
                     <tr>
                       <td colSpan={7} className="p-4 text-center text-gray-500">
-                        Loading...
+                        <div className="flex justify-center items-center gap-2">
+                          <Loader2 className="animate-spin h-4 w-4" />
+                          Loading...
+                        </div>
                       </td>
                     </tr>
                   ) : filteredAdmins.length === 0 ? (
@@ -388,6 +392,102 @@ export function AdminManagementTab() {
                 </tbody>
               </table>
             </div>
+          </div>
+
+          {/* MOBILE CARD VIEW */}
+          <div className="md:hidden space-y-4">
+            {isLoading ? (
+              <div className="p-8 text-center text-gray-500">
+                <Loader2 className="animate-spin mx-auto mb-2" />
+                Loading...
+              </div>
+            ) : filteredAdmins.length === 0 ? (
+              <div className="p-8 text-center text-gray-500 border rounded-lg bg-gray-50 dark:bg-gray-900 border-dashed">
+                No admins found.
+              </div>
+            ) : (
+              filteredAdmins.map((adm) => (
+                <div
+                  key={adm.id}
+                  className="p-4 border rounded-xl bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 shadow-sm"
+                >
+                  <div className="flex justify-between items-start mb-2">
+                    <div>
+                      <h3 className="font-bold text-gray-900 dark:text-white">
+                        {adm.display_name}
+                      </h3>
+                      <div className="flex items-center gap-2 mt-1">
+                        <p className="text-xs font-mono text-gray-500 dark:text-gray-400">
+                          {adm.student_id}
+                        </p>
+                        {adm.role === "superadmin" ? (
+                          <Badge className="text-[10px] h-5 bg-yellow-100 text-yellow-800 hover:bg-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-400 border-yellow-200">
+                            Superadmin
+                          </Badge>
+                        ) : (
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] h-5 bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-800 dark:text-gray-300"
+                          >
+                            Admin
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 -mr-2 -mt-2"
+                        >
+                          <MoreVertical className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => openEditModal(adm)}>
+                          <Pencil className="mr-2 h-4 w-4" /> Edit
+                        </DropdownMenuItem>
+                        {adm.role !== "superadmin" && (
+                          <DropdownMenuItem
+                            className="text-red-600"
+                            onClick={() => {
+                              setSelectedAdmin(adm);
+                              setIsDeleteOpen(true);
+                            }}
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" /> Delete
+                          </DropdownMenuItem>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+
+                  <div className="mb-3">
+                    {adm.google_bound ? (
+                      <Badge className="text-[10px] bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-400">
+                        Verified
+                      </Badge>
+                    ) : (
+                      <Badge
+                        variant="secondary"
+                        className="text-[10px] text-gray-500"
+                      >
+                        Pending
+                      </Badge>
+                    )}
+                    <p className="text-sm text-gray-600 dark:text-gray-400 truncate mt-1">
+                      {adm.email}
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 border-t pt-3 mt-3 border-gray-100 dark:border-gray-800">
+                    <CalendarDays className="w-3 h-3" />
+                    Birthdate: {adm.birthdate || "Not set"}
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </CardContent>
       </Card>

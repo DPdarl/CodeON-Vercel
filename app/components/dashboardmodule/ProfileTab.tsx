@@ -69,7 +69,7 @@ export function ProfileTab({ user, onSaveAvatar }: ProfileTabProps) {
 
   const [displayName, setDisplayName] = useState(user?.displayName || "");
   const [selectedBadges, setSelectedBadges] = useState<string[]>(
-    user?.badges || []
+    user?.badges || [],
   );
   const [realRank, setRealRank] = useState<number | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -116,7 +116,7 @@ export function ProfileTab({ user, onSaveAvatar }: ProfileTabProps) {
 
           if (updatedAuthUser && updatedAuthUser.identities) {
             const googleIdentity = updatedAuthUser.identities.find(
-              (id) => id.provider === "google"
+              (id) => id.provider === "google",
             );
 
             if (googleIdentity) {
@@ -206,7 +206,7 @@ export function ProfileTab({ user, onSaveAvatar }: ProfileTabProps) {
 
   const toggleBadge = (badge: string) => {
     setSelectedBadges((prev) =>
-      prev.includes(badge) ? prev.filter((b) => b !== badge) : [...prev, badge]
+      prev.includes(badge) ? prev.filter((b) => b !== badge) : [...prev, badge],
     );
   };
 
@@ -246,11 +246,11 @@ export function ProfileTab({ user, onSaveAvatar }: ProfileTabProps) {
                 <Calendar className="w-4 h-4 mr-2" /> Joined: {creationDate}
               </div>
             </div>
-            <div className="hidden sm:flex ml-auto flex-col items-end gap-2 max-w-[250px]">
+            <div className="flex w-full sm:w-auto sm:ml-auto flex-col items-center sm:items-end gap-2 mt-4 sm:mt-0 max-w-full sm:max-w-[250px]">
               <div className="text-sm text-gray-500 font-bold uppercase tracking-wider">
                 Active Badges
               </div>
-              <div className="flex flex-wrap justify-end gap-1.5">
+              <div className="flex flex-wrap justify-center sm:justify-end gap-1.5">
                 {user.badges && user.badges.length > 0 ? (
                   user.badges.slice(0, 5).map((badge) => (
                     <Badge
@@ -424,7 +424,7 @@ export function ProfileTab({ user, onSaveAvatar }: ProfileTabProps) {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex items-center justify-between p-4 border rounded-xl bg-gray-50 dark:bg-gray-800/50">
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 border rounded-xl bg-gray-50 dark:bg-gray-800/50">
                     <div className="flex items-center gap-4">
                       <div className="p-3 bg-white dark:bg-gray-700 rounded-full shadow-sm">
                         <svg className="w-6 h-6" viewBox="0 0 488 512">
@@ -451,6 +451,7 @@ export function ProfileTab({ user, onSaveAvatar }: ProfileTabProps) {
                         variant="outline"
                         onClick={() => setShowChangeAccountModal(true)}
                         disabled={isLinking}
+                        className="w-full sm:w-auto"
                       >
                         {isLinking ? (
                           <Loader2 className="w-4 h-4 animate-spin" />
@@ -467,7 +468,7 @@ export function ProfileTab({ user, onSaveAvatar }: ProfileTabProps) {
                         onClick={() => setShowLinkModal(true)}
                         disabled={isLinking}
                         variant="outline"
-                        className="hover:bg-blue-50 dark:hover:bg-blue-900/20 border-blue-200 text-blue-600"
+                        className="w-full sm:w-auto hover:bg-blue-50 dark:hover:bg-blue-900/20 border-blue-200 text-blue-600"
                       >
                         {isLinking ? (
                           <Loader2 className="w-4 h-4 animate-spin" />

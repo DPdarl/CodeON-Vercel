@@ -54,7 +54,7 @@ export function MobileHeader({
   onProfileClick: () => void;
 }) {
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
-  const { hearts, timeRemaining, buyHearts } = useHeartSystem(user);
+  const { hearts, timeRemaining, buyHearts } = useHeartSystem();
   const isHeartFull = hearts >= MAX_HEARTS;
 
   const confirmLogout = () => {

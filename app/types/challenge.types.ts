@@ -9,10 +9,21 @@ export interface Challenge {
   solution: string;
 
   // FIXED: Changed from method signature to string property
-  category: string;
-  language: string;
+  category?: string;
+  language?: string;
 
   requiredVersion?: string;
-  difficulty: "Easy" | "Medium" | "Hard";
-  xp: number;
+  difficulty?: "Easy" | "Medium" | "Hard";
+  xp?: number;
+
+  // Function to simulate running the code in browser
+  runner?: (
+    input: (prompt: string) => Promise<string>,
+    output: (text: string) => void,
+  ) => Promise<void>;
+
+  moduleId?: number;
+  testInputs?: string[];
+  xpReward?: number;
+  coinsReward?: number;
 }
