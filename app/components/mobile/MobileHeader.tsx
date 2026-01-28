@@ -19,8 +19,14 @@ import {
 } from "~/components/ui/dialog";
 import { Moon, LogOut, Clock, Zap, User as UserIcon } from "lucide-react";
 import { AvatarDisplay } from "~/components/dashboardmodule/AvatarDisplay";
-import { CoinIcon, FlameIcon, HeartIcon } from "~/components/ui/Icons";
+import {
+  CoinIcon,
+  FlameIcon,
+  HeartIcon,
+  StreakPendingIcon,
+} from "~/components/ui/Icons";
 import { useHeartSystem, MAX_HEARTS, HEART_COST } from "~/hooks/useHeartSystem";
+import { calculateEffectiveStreak, getStreakState } from "~/lib/streak-logic";
 
 // --- SMALLER MOBILE STAT ITEM ---
 function MobileStatItem({
@@ -57,6 +63,9 @@ export function MobileHeader({
   const { hearts, timeRemaining, buyHearts } = useHeartSystem();
   const isHeartFull = hearts >= MAX_HEARTS;
 
+  const effectiveStreak = calculateEffectiveStreak(user);
+  const streakState = getStreakState(user);
+
   const confirmLogout = () => {
     setShowLogoutDialog(false);
     setTimeout(() => onLogout(), 300);
@@ -83,8 +92,19 @@ export function MobileHeader({
             </div>
 
             <MobileStatItem
-              icon={<FlameIcon className="h-3.5 w-3.5" />}
-              value={stats.streaks}
+              icon={
+                streakState === "PENDING" || streakState === "BROKEN" ? (
+                  <StreakPendingIcon className="h-3.5 w-3.5 opacity-50 grayscale" />
+                ) : (
+                  <FlameIcon className="h-3.5 w-3.5" />
+                )
+              }
+              value={effectiveStreak}
+              color={
+                streakState === "PENDING" || streakState === "BROKEN"
+                  ? "text-gray-400"
+                  : undefined
+              }
             />
             <MobileStatItem
               icon={<CoinIcon className="h-3.5 w-3.5" />}
