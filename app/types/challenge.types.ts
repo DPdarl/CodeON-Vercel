@@ -1,29 +1,31 @@
-// app/types/challenge.types.ts
 export interface Challenge {
   id: string;
+  moduleId?: number;
   title: string;
   description: string;
-  page: number;
+  page?: number;
   starterCode: string;
   hint: string;
   solution: string;
-
-  // FIXED: Changed from method signature to string property
-  category?: string;
   language?: string;
-
   requiredVersion?: string;
   difficulty?: "Easy" | "Medium" | "Hard";
-  xp?: number;
 
-  // Function to simulate running the code in browser
+  // Rewards
+  xpReward?: number;
+  coinsReward?: number;
+
+  // Verification & Testing
+  testInputs?: string[];
   runner?: (
     input: (prompt: string) => Promise<string>,
     output: (text: string) => void,
   ) => Promise<void>;
 
-  moduleId?: number;
-  testInputs?: string[];
-  xpReward?: number;
-  coinsReward?: number;
+  // Grading
+  targetTimeMinutes?: number;
+
+  // Construction Mode
+  constructionTemplate?: string;
+  constructionPool?: string[];
 }

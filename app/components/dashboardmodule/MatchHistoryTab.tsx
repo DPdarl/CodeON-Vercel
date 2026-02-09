@@ -61,16 +61,34 @@ export function MatchHistoryTab() {
 
   // Helper to extract accuracy for the specific user or winner
   const getAccuracy = (match: Match) => {
-    if (!match.results || match.results.length === 0) return "-";
+    if (!match.results) return "-";
 
-    // 1. Try to find THIS user's result specifically
-    const myResult = match.results.find(
-      (r: any) => r.name === user?.displayName,
-    );
-    if (myResult && myResult.accuracy) return myResult.accuracy;
+    try {
+      // Handle Challenge Mode or Legacy Data (results is a single object)
+      if (!Array.isArray(match.results)) {
+        if (match.mode && match.mode.toLowerCase().includes("challenge")) {
+          return `${(match.results as any).stars || 0} ★`;
+        }
+        return "-";
+      }
 
-    // 2. Fallback: Return the first result (usually winner/solo player)
-    return match.results[0]?.accuracy || "-";
+      if (match.results.length === 0) return "-";
+
+      // 1. Try to find THIS user's result specifically
+      // specific check for .find to be absolutely safe (though Array.isArray should suffice)
+      if (typeof match.results.find === "function") {
+        const myResult = match.results.find(
+          (r: any) => r.name === user?.displayName,
+        );
+        if (myResult && myResult.accuracy) return myResult.accuracy;
+      }
+
+      // 2. Fallback: Return the first result (usually winner/solo player)
+      return match.results[0]?.accuracy || "-";
+    } catch (e) {
+      console.warn("Error processing match results for ID:", match.id, e);
+      return "Err";
+    }
   };
 
   useEffect(() => {
@@ -129,26 +147,56 @@ export function MatchHistoryTab() {
   });
 
   const handleExportMatch = (match: Match) => {
-    if (!match.results || match.results.length === 0) {
+    if (!match.results) {
       toast.error("No detailed results available for this match.");
       return;
     }
 
-    const exportData = match.results.map((r: any) => ({
-      Rank: r.rank,
-      "Player Name": r.name,
-      "Total Score": r.score,
-      Accuracy: r.accuracy,
-      Duration: formatDuration(match.duration_seconds),
-      "Game Mode": match.mode,
-      "Date Played": new Date(match.played_at).toLocaleDateString(),
-    }));
+    try {
+      let exportData = [];
 
-    exportToCSV(
-      exportData,
-      `Match_${match.mode.replace(/[\s:]+/g, "_")}_${match.id.slice(0, 4)}`,
-    );
-    toast.success(`Exported results for ${match.mode}`);
+      if (
+        Array.isArray(match.results) &&
+        typeof match.results.length === "number"
+      ) {
+        if (match.results.length === 0) {
+          toast.error("No detailed results available for this match.");
+          return;
+        }
+
+        exportData = match.results.map((r: any) => ({
+          Rank: r.rank,
+          "Player Name": r.name,
+          "Total Score": r.score,
+          Accuracy: r.accuracy,
+          Duration: formatDuration(match.duration_seconds),
+          "Game Mode": match.mode,
+          "Date Played": new Date(match.played_at).toLocaleDateString(),
+        }));
+      } else {
+        // Challenge Mode or Single Object
+        exportData = [
+          {
+            Rank: 1,
+            "Player Name": "You",
+            "Total Score": (match.results as any).xp || 0,
+            Accuracy: `${(match.results as any).stars || 0} Stars`,
+            Duration: formatDuration(match.duration_seconds),
+            "Game Mode": match.mode,
+            "Date Played": new Date(match.played_at).toLocaleDateString(),
+          },
+        ];
+      }
+
+      exportToCSV(
+        exportData,
+        `Match_${match.mode.replace(/[\s:]+/g, "_")}_${match.id.slice(0, 4)}`,
+      );
+      toast.success(`Exported results for ${match.mode}`);
+    } catch (e) {
+      console.error("Export error:", e);
+      toast.error("Failed to export match data.");
+    }
   };
 
   return (

@@ -39,10 +39,13 @@ export interface UserData {
   badges?: string[];
   googleBound?: boolean;
   birthdate?: string;
+  startedAt?: string;
   completedChapters?: string[];
   questStats?: any;
   claimedQuests?: string[];
   frozenDates?: string[]; // Added frozenDates
+  stars?: number;
+  completedMachineProblems?: string[];
 }
 
 interface AuthContextType {
@@ -106,6 +109,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       questStats: db.stats ?? {},
       claimedQuests: db.claimed_quests ?? [],
       frozenDates: db.frozen_dates ?? [],
+      stars: db.stars ?? 0,
+      completedMachineProblems: db.completed_machineproblems ?? [],
     }),
     [],
   );
@@ -159,6 +164,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if ("frozenDates" in db) {
       db.frozen_dates = db.frozenDates;
       delete db.frozenDates;
+    }
+
+    if ("completedMachineProblems" in db) {
+      db.completed_machineproblems = db.completedMachineProblems;
+      delete db.completedMachineProblems;
     }
 
     delete db.uid;

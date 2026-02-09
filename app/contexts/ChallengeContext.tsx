@@ -8,6 +8,7 @@ import React, {
 } from "react";
 import { useNavigate } from "@remix-run/react";
 import { challenges } from "~/data/challenges";
+import { toast } from "sonner";
 import type { Challenge } from "~/types/challenge.types";
 import { executeCode } from "~/utils/piston";
 import { lintCode, type LintError } from "~/utils/linter";
@@ -16,6 +17,7 @@ import {
   saveChallengeProgress,
   fetchUserProgress,
 } from "~/utils/challenge.client";
+import { supabase } from "~/lib/supabase";
 
 // 1. Define the shape of the state
 interface ChallengeState {
@@ -27,6 +29,7 @@ interface ChallengeState {
   exp: number;
   level: number;
   coins: number;
+  hints: number; // [NEW] Hint Powerups
   levelThreshold: number;
   showHint: boolean;
   showTerminal: boolean;
@@ -39,6 +42,11 @@ interface ChallengeState {
     source: string;
   }>; // Compiler errors
   showSuccessModal: boolean; // [NEW] Control the success modal
+  startTime: number; // [NEW] Track start time for grading
+  lastEarnedStars: number; // [NEW] Stars earned in this specific run
+  inputHistory: string[]; // [NEW] History of inputs for re-run strategy
+  isLoading: boolean;
+  isExecuting: boolean; // [NEW] Track code execution specifically
 }
 
 // 2. Define the shape of the context value (state + functions)
@@ -56,6 +64,7 @@ interface ChallengeContextType extends ChallengeState {
   handleCloseModal: () => void; // [NEW]
   toggleHint: () => void;
   useHint: () => boolean;
+  buyHint: () => void; // [NEW]
   setCurrentChallengeIndex: (index: number) => void;
 }
 
@@ -89,17 +98,23 @@ export const ChallengeProvider = ({
     exp: 0,
     level: 1,
     coins: 10,
+    hints: 0, // [NEW]
     levelThreshold: 20,
     showHint: false,
     showTerminal: false,
     isWaitingForInput: false,
     userProgress: 0,
     diagnostics: [],
-    showSuccessModal: false, // [NEW]
+    showSuccessModal: false,
+    startTime: Date.now(),
+    lastEarnedStars: 0, // [NEW]
+    inputHistory: [], // [NEW]
+    isLoading: true, // [NEW] Loading state
+    isExecuting: false, // [NEW]
   });
 
   const navigate = useNavigate(); // [NEW] Navigation hook
-  const { user } = useAuth();
+  const { user, refreshUser, updateProfile } = useAuth();
 
   // Sync basic stats from User Profile on mount
   useEffect(() => {
@@ -107,15 +122,34 @@ export const ChallengeProvider = ({
       setState((prev) => ({
         ...prev,
         coins: user.coins || 0,
+        hints: user.hints || 0, // [NEW]
         exp: user.xp || 0,
         level: user.level || 1,
         // user.levelThreshold might not be in user object, keep default or calculate
       }));
 
       // Fetch specific challenge progress
-      fetchUserProgress(user.uid).then((completedIds) => {
-        setState((prev) => ({ ...prev, completed: completedIds }));
+      fetchUserProgress(user.uid).then((progressData) => {
+        // progressData is now [{ challenge_id, stars }, ...]
+        // We use user.completedMachineProblems for 'completed' source of truth
+        // because user_challenge_progress might exist while user stats were not updated (the bug).
+        const completedIds = user.completedMachineProblems || [];
+
+        const starsMap: Record<string, number> = {};
+        progressData.forEach((p: any) => {
+          if (p.challenge_id) starsMap[p.challenge_id] = p.stars || 0;
+        });
+
+        setState((prev) => ({
+          ...prev,
+          completed: completedIds,
+          stars: starsMap,
+          isLoading: false, // [NEW] Sync done
+        }));
       });
+    } else {
+      // If no user, technically we stop loading but it will be empty
+      setState((prev) => ({ ...prev, isLoading: false }));
     }
   }, [user]);
 
@@ -166,6 +200,8 @@ export const ChallengeProvider = ({
       const result = await executeCode("csharp", code, stdin);
 
       let out = result.stdout || "";
+      // Normalize newlines to prevent rendering issues with mixed \r\n
+      out = out.replace(/\r\n/g, "\n");
 
       // Strip the duplicated prompt if it exists in the output
       if (stripPrefix) {
@@ -216,6 +252,115 @@ export const ChallengeProvider = ({
     }
   };
 
+  // --- Interactive Execution Helper ---
+  const runWithHistory = async (currentInputs: string[]) => {
+    const rawCode = state.code;
+
+    // 1. Inject Shim for ReadLine to detect missing input
+    // We replace Console.ReadLine() with our custom wrapper that throws if null.
+    const shim = `
+      // --- INTERAL SHIM ---
+      public static class _Internal {
+          public static string ReadLine() {
+              string s = System.Console.ReadLine();
+              if (s == null) throw new System.Exception("_INPUT_REQUIRED_");
+              // Echo input precisely: Write string, then NewLine
+              // [Fix] We use a marker \u001D to detect the start of input echo.
+              // This allows us to strip preceding newlines in the UI to ensure inline prompts.
+              System.Console.Write("\u001D" + s);
+              System.Console.WriteLine();
+              return s;
+          }
+      }
+      // --- END SHIM ---
+    `;
+
+    // Regex to replace Console.ReadLine()
+    // Handles: Console.ReadLine(), System.Console.ReadLine()
+    let shimmedCode = rawCode.replace(
+      /System\.Console\.ReadLine\s*\(\)/g,
+      "_Internal.ReadLine()",
+    );
+    shimmedCode = shimmedCode.replace(
+      /Console\.ReadLine\s*\(\)/g,
+      "_Internal.ReadLine()",
+    );
+
+    // Append the shim class at the end
+    shimmedCode += shim + "\n";
+
+    // 2. Prepare Stdin
+    const fullStdin = currentInputs.join("\n");
+
+    setState((prev) => ({
+      ...prev,
+      showTerminal: true,
+      output: prev.output, // Keep previous output while thinking
+      isWaitingForInput: false,
+      isExecuting: true,
+    }));
+
+    try {
+      const result = await executeCode("csharp", shimmedCode, fullStdin);
+      let out = result.stdout || "";
+      // console.log("DEBUG RAW OUTPUT:", JSON.stringify(out)); // [DEBUG REMOVED]
+      let err = result.stderr || "";
+      let neededInput = false;
+
+      // 3. Check for Input Requirement
+      if (err.includes("_INPUT_REQUIRED_")) {
+        neededInput = true;
+        err = "";
+      } else if (err.includes("Input string was not in a correct format")) {
+        neededInput = true;
+        err = "";
+      }
+
+      // [New] Execution Status
+      if (!neededInput && !err) {
+        if (!out.trim()) {
+          out =
+            "⚠️ Code executed successfully but produced no output.\n" +
+            "Hint: Use Console.WriteLine() to print to the console.";
+        } else {
+          out += "\n\nCode Execution Successful.";
+        }
+      }
+
+      // [Fix] Post-process output to enforce inline prompts.
+      // 1. If waiting for input, remove TRAILING newline to keep cursor on same line.
+      if (neededInput && /[\r\n]+$/.test(out)) {
+        out = out.replace(/[\r\n]+$/, "");
+      }
+
+      // 2. If we see \n<Marker> (from re-runs), remove the \n to merge lines.
+      // Marker is \u001D
+      out = out.replace(/\n\u001D/g, "");
+      out = out.replace(/\r\n\u001D/g, "");
+      // Remove any remaining markers
+      out = out.replace(/\u001D/g, "");
+
+      // 4. Update State
+      setState((prev) => {
+        return {
+          ...prev,
+          output: out + (err ? `\nError:\n${err}` : ""),
+          isWaitingForInput: neededInput,
+          isLoading: false,
+          isExecuting: false,
+        };
+      });
+    } catch (e: any) {
+      setState((prev) => ({
+        ...prev,
+        output: `System Error: ${e.message}`,
+        isWaitingForInput: false,
+        isLoading: false,
+        isExecuting: false,
+      }));
+    }
+  };
+
   const handleRun = async () => {
     const codeToRun = state.code;
 
@@ -242,91 +387,47 @@ export const ChallengeProvider = ({
       return;
     }
 
-    const needsInput = /Console\.ReadLine\(|ReadLine\(/i.test(codeToRun);
+    // Reset Input History
+    setState((prev) => ({ ...prev, inputHistory: [] }));
 
-    // Reset Prompt Ref
-    expectedPromptRef.current = null;
-
-    setState((prev) => ({
-      ...prev,
-      showTerminal: true,
-      output: "Compiling...\n",
-      isWaitingForInput: false,
-    }));
-
-    if (needsInput) {
-      // Heuristic: Try to find the prompt string in the code
-      // Look for Console.Write("...") before ReadLine
-      const lines = codeToRun.split("\n");
-      let foundPrompt = "Input Required";
-      let manualPromptFound = false;
-
-      // Find first ReadLine
-      const readLineIdx = lines.findIndex((l) => /ReadLine/.test(l));
-      if (readLineIdx !== -1) {
-        // Scan backwards
-        for (let i = readLineIdx - 1; i >= 0; i--) {
-          const line = lines[i].trim();
-          if (!line || line.startsWith("//")) continue;
-
-          // Check for Console.Write or WriteLine with string literal
-          const match = line.match(
-            /(?:System\.)?Console\.Write(Line)?\s*\(\s*"([^"]*)"\s*\)/,
-          );
-          if (match) {
-            foundPrompt = match[2];
-            manualPromptFound = true;
-            expectedPromptRef.current = foundPrompt; // Store to strip later
-            // If WriteLine, Piston output will have \n, so regex strip might need care,
-            // but basic stripping is a good start.
-            if (match[1] === "Line") expectedPromptRef.current += "\r\n"; // Approximate newline expectation
-            break;
-          }
-          // If we hit a statement that isn't a write, stop scanning to avoid false matching
-          if (line.endsWith(";") || line.includes("{") || line.includes("}"))
-            break;
-        }
-      }
-
-      const displayPrompt = manualPromptFound
-        ? foundPrompt
-        : "Input Required (Console.ReadLine). Type value and press Enter:";
-      const suffix = manualPromptFound ? "" : "\n> "; // If manual prompt (e.g. "Name: "), don't add newline/arrow, look cleaner.
-
-      // If manual prompt, we kind of want to simulate the prompt appearance:
-      // "Name: " -> User types here.
-      // So we append "Name: " to output.
-      // AND we set suffix to "" so user types directly after.
-
-      setState((prev) => ({
-        ...prev,
-        output: prev.output + displayPrompt + suffix,
-        isWaitingForInput: true,
-      }));
-      return;
-    }
-
-    // No input needed, run immediately
-    await executeWithPiston(codeToRun, "");
+    // Start Execution with empty input
+    await runWithHistory([]);
   };
 
   const submitTerminalInput = async (inputVal: string) => {
     if (state.isWaitingForInput) {
-      // Echo the input to make it look like a terminal session
-      // If we used a custom prompt, we might want to add a newline after the input echo
-      // because Piston output usually starts on new line (unless we strip it).
+      const newHistory = [...state.inputHistory, inputVal];
 
       setState((prev) => ({
         ...prev,
-        output: prev.output + "\n",
-        isWaitingForInput: false,
+        inputHistory: newHistory,
+        // Show the user's input locally for immediate feedback?
+        // Actually, re-running Piston will output the prompt again?
+        // No, Piston does NOT echo stdin.
+        // So we MUST echo it ourselves in the UI if we want it to look like a terminal.
+        // But we are replacing the entire output on re-run.
+        // So Piston output will be: "Prompt... (no echo) Prompt2..."
+        // We need to manually stitch input into the output?
+        // Or cleaner: Rely on the Fact that we replace the output.
+        // Wait, if Piston doesn't echo, the user interaction looks weird.
+        // "Enter choice: 1" -> "Enter choice: Enter temp: "
+        // The "1" disappears?
+
+        // To fix this, we might rely on the fact that standard terminals echo input.
+        // But Piston is not a TTY.
+        // We can assume Piston output is clean.
+        // If we want to show history, we might need to interleave it?
+        // For now, let's just run it. The user will see the *Next* prompt.
+        // The previous prompts/values might "disappear" if we just show raw stdout,
+        // unless the program prints them (it won't).
+
+        // Actually, in a real terminal, the typed char is echoed.
+        // Since we are rebuilding the session, we lose that echo.
+        // Improvement: We can't easily interleave unless we parse.
+        // But let's verify if this "Re-run" is better than broken code. Yes.
       }));
 
-      await executeWithPiston(
-        state.code,
-        inputVal,
-        expectedPromptRef.current || undefined,
-      );
+      await runWithHistory(newHistory);
     }
   };
 
@@ -334,6 +435,7 @@ export const ChallengeProvider = ({
     correct: boolean;
     stars: number;
     feedback: string;
+    executionTimeMs: number;
   }> => {
     // Basic heuristics if no test inputs (shouldn't happen with our update)
     const inputs = currentChallenge.testInputs || ["5"];
@@ -348,12 +450,22 @@ export const ChallengeProvider = ({
     // --- Structural Check (IPO) ---
     // 1. Input Check
     if (!code.includes("Console.ReadLine")) {
-      return {
+      const failResult = {
         correct: false,
         stars: 0,
-        feedback:
-          "Missing Input: Your code must read input using Console.ReadLine().",
+        feedback: "Missing Input: You need to get data from the user.",
+        executionTimeMs: 0,
       };
+      setState((prev) => ({
+        ...prev,
+        output:
+          prev.output +
+          "\n❌ MISSING INPUT\n------------------\n" +
+          "Your code needs to read input from the user.\n" +
+          "💡 Tip: Use `Console.ReadLine()`.\n" +
+          "Example: string data = Console.ReadLine();\n",
+      }));
+      return failResult;
     }
 
     // 2. Output Check
@@ -361,32 +473,127 @@ export const ChallengeProvider = ({
       !code.includes("Console.WriteLine") &&
       !code.includes("Console.Write")
     ) {
-      return {
+      const failResult = {
         correct: false,
         stars: 0,
-        feedback:
-          "Missing Output: Your code must display output using Console.WriteLine() or Console.Write().",
+        feedback: "Missing Output: You need to show the result.",
+        executionTimeMs: 0,
       };
+      setState((prev) => ({
+        ...prev,
+        output:
+          prev.output +
+          "\n❌ MISSING RESULT\n-------------------\n" +
+          "Your program logic is good, but it doesn't show the answer.\n" +
+          "💡 Tip: Use `Console.WriteLine()` to print the result.\n",
+      }));
+      return failResult;
     }
 
-    // 3. Process Check (Heuristic: Look for assignments, math, or logic)
-    // We look for common operators or keywords that imply processing.
-    const processPattern = /[\+\-\*\/%]|Math\.|if\s*\(|switch|for|while|do/;
-    // Also consider complex assignments beyond simple I/O?
-    // Actually, simple variable assignment `int x = ...` is often part of process, but `int x = int.Parse(...)` is input.
-    // Let's stick to operators/logic keywords for "Process".
-    if (!processPattern.test(code)) {
-      // It's possible to have a program that just reads and writes without processing (echo),
-      // but most challenges require processing.
-      // Start with a warning or strict check? User asked "check if there is code for Process".
-      // Let's be strict for now as challenges usually require it.
-      return {
+    // 3. Process Check (Heuristic towards Logic/Formula)
+    const cleanCode = code
+      .replace(/\/\/.*$/gm, "") // Remove single-line comments
+      .replace(/\/\*[\s\S]*?\*\//g, ""); // Remove multi-line comments
+
+    // Look for: Operators, Math calls, Loops, or assignments that assume calculation
+    // Fixed: Added word boundaries (\b) to avoid matching 'double' as 'do'.
+    // Matches: +, -, *, /, %, Math., if, switch, for, foreach, while, do
+    const processPattern =
+      /[\+\-\*\/%]|Math\.|\bif\s*\(|\bswitch\b|\bfor\b|\bforeach\b|\bwhile\b|\bdo\b/;
+
+    if (!processPattern.test(cleanCode)) {
+      const failResult = {
         correct: false,
         stars: 0,
-        feedback:
-          "Missing Process: Your code generally needs to perform calculations or logic (e.g., +, -, *, /, if, loops).",
+        feedback: "Missing Formula: No calculations found.",
+        executionTimeMs: 0,
       };
+      setState((prev) => ({
+        ...prev,
+        output:
+          prev.output +
+          "\n❌ MISSING LOGIC OR FORMULA\n----------------------------\n" +
+          "You have the Input and Output, but where is the formula?\n" +
+          "Your code needs to calculate the answer.\n" +
+          "💡 Tip: Look at the problem description for the formula (using +, -, *, /).\n",
+      }));
+      return failResult;
     }
+
+    // --- Challenge 1.2 Specific Checks (Temp Conversion) ---
+    if (currentChallenge.id === "1.2") {
+      const clean = cleanCode; // Use the comment-stripped code
+
+      // 1. Check for Invalid Input Handler (else / default)
+      // We look for 'else' or 'default' keyword.
+      // Note: 'else if' contains 'else', but we specifically want the fallback 'else'.
+      // Regex: \belse\b(?!\s*if) finds 'else' not followed by 'if'.
+      const hasElse = /\belse\b(?!\s*if)/.test(clean);
+      const hasDefault = /\bdefault\b/.test(clean); // For switch cases
+
+      if (!hasElse && !hasDefault) {
+        return {
+          correct: false,
+          stars: 0,
+          feedback:
+            "Missing Invalid Input Handler: You need to handle invalid choices (like 3 or 4).",
+          executionTimeMs: 0,
+        };
+      }
+
+      // 2. Check for Option 1: C to F
+      // Formula: * 9 / 5  OR  * 1.8
+      const hasCtoF = /(\*\s*9\s*\/\s*5)|(\*\s*1\.8)/.test(clean);
+      if (!hasCtoF) {
+        return {
+          correct: false,
+          stars: 0,
+          feedback:
+            "Missing Logic (Option 1): I don't see the formula for Celsius to Fahrenheit.\nHint: (C * 9/5) + 32",
+          executionTimeMs: 0,
+        };
+      }
+
+      // 3. Check for Option 2: F to C
+      // Formula: * 5 / 9  OR  / 1.8
+      const hasFtoC = /(\*\s*5\s*\/\s*9)|(\/\s*1\.8)/.test(clean);
+      if (!hasFtoC) {
+        return {
+          correct: false,
+          stars: 0,
+          feedback:
+            "Missing Logic (Option 2): I don't see the formula for Fahrenheit to Celsius.\nHint: (F - 32) * 5/9",
+          executionTimeMs: 0,
+        };
+      }
+    }
+
+    // [New] Clear terminal before verify to show fresh results?
+    // Actually the "Verifying solution..." is already there. Let's keep it.
+
+    // [New] Inject Shim for Verification consistency (Echoing inputs)
+    const shim = `
+      public static class _Internal {
+          public static string ReadLine() {
+              string s = System.Console.ReadLine();
+              if (s == null) return null; // Piston EOF check
+              System.Console.Write(s);
+              System.Console.WriteLine();
+              return s;
+          }
+      }
+    `;
+
+    // Regex to replace Console.ReadLine()
+    let verifiedCode = code.replace(
+      /System\.Console\.ReadLine\s*\(\)/g,
+      "_Internal.ReadLine()",
+    );
+    verifiedCode = verifiedCode.replace(
+      /Console\.ReadLine\s*\(\)/g,
+      "_Internal.ReadLine()",
+    );
+    verifiedCode += "\n" + shim;
 
     for (const inputVal of inputs) {
       try {
@@ -404,12 +611,14 @@ export const ChallengeProvider = ({
         }
 
         // 2. Run User Code via Piston
-        const result = await executeCode("csharp", code, inputVal);
+        // Use verifiedCode instead of code
+        const result = await executeCode("csharp", verifiedCode, inputVal);
         if (result.stderr) {
           return {
             correct: false,
             stars: 0,
             feedback: `Compilation/Runtime Error:\n${result.stderr}`,
+            executionTimeMs: 0,
           };
         }
 
@@ -417,6 +626,28 @@ export const ChallengeProvider = ({
         // Normalize: remove extra whitespace, newlines, case-insensitiveish?
         const normUser = (result.stdout || "").replace(/\s+/g, " ").trim();
         const normExpected = expectedOutput.replace(/\s+/g, " ").trim();
+
+        // [New] Log the test execution to the terminal for visibility
+        setState((prev) => ({
+          ...prev,
+          output:
+            prev.output +
+            `\nTest Input: ${inputVal.replace(/\n/g, " ")}\nOutput:\n${
+              result.stdout || "(no output)"
+            }\n`,
+        }));
+
+        // [New] Safety Check: If no expected output was generated (e.g. missing runner),
+        // we cannot verify correctness. Fail safely to avoid false positives.
+        if (!normExpected) {
+          return {
+            correct: false,
+            stars: 0,
+            feedback:
+              "Configuration Error: This challenge is missing verification tests. Please report this to the developer.",
+            executionTimeMs: 0,
+          };
+        }
 
         // Loose comparison: check if expected numbers/keywords appear in user output
         // Perfect matching is hard because of prompts ("Enter radius: ").
@@ -426,32 +657,207 @@ export const ChallengeProvider = ({
         // e.g. "The volume ... is ...", checking includes is reasonable.
 
         if (!normUser.includes(normExpected)) {
-          return {
-            correct: false,
-            stars: 0,
-            feedback: `Test Failed for input: ${inputVal.replace(
-              /\n/g,
-              ", ",
-            )}\n\nExpected output to contain:\n"${normExpected}"\n\nGot:\n"${normUser}"`,
+          // Check for empty output
+          if (!normUser) {
+            const failResult = {
+              correct: false,
+              stars: 0,
+              feedback: "Missing Output: Your code didn't print anything.",
+              executionTimeMs: 0,
+            };
+            setState((prev) => ({
+              ...prev,
+              output:
+                prev.output +
+                "\n❌ MISSING OUTPUT\n------------------\n" +
+                "Your code ran successfully, but it didn't show any results.\n" +
+                "You need to print the answer to the screen.\n" +
+                "💡 Tip: Use `Console.WriteLine()`.\n" +
+                'Example: Console.WriteLine("The volume is: " + volume);\n',
+            }));
+            return failResult;
+          }
+
+          // Heuristic: If expected output has digits (like a result) but user output has none,
+          // it likely means they printed the prompt but not the calculated answer.
+          const expectedHasDigits = /\d/.test(normExpected);
+          const userHasDigits = /\d/.test(normUser);
+
+          if (expectedHasDigits && !userHasDigits) {
+            return {
+              correct: false,
+              stars: 0,
+              feedback:
+                "Your code ran, but I don't see the answer in the output. Did you forget to print the result using `Console.WriteLine()`?",
+              executionTimeMs: 0,
+            };
+          }
+
+          // [New] Fuzzy Numeric Check
+          // Pass if we find a number in user output that is reasonably close to a number in expected output.
+          // This handles cases like 523.598... vs 523.60
+          const extractNumbers = (txt: string) => {
+            const matches = txt.match(/-?[\d,]*\.?\d+/g) || [];
+            return matches
+              .map((n) => parseFloat(n.replace(/,/g, "")))
+              .filter((n) => !isNaN(n));
           };
+
+          const inputNums = extractNumbers(inputVal);
+          const expNums = extractNumbers(normExpected);
+          const usrNums = extractNumbers(normUser);
+
+          // If expected output contains numbers, assume one of them is the answer.
+          // Check if user output contains a matching number (tolerance 0.1)
+          // [Fix] Ensure the matched number is NOT just an echo of the input.
+          const isNumericMatch =
+            expNums.length > 0 &&
+            expNums.some((e) =>
+              usrNums.some((u) => {
+                const isMatch = Math.abs(u - e) < 0.1;
+                // If it matches, verify it's not a trivial input echo
+                // If matched value 'u' is present in inputNums, we treat it as an echo and discard.
+                const isInputEcho = inputNums.some(
+                  (i) => Math.abs(u - i) < 0.001,
+                );
+                return isMatch && !isInputEcho;
+              }),
+            );
+
+          if (isNumericMatch) {
+            // It matches numerically!
+            // [Refinement] But did they print the prompt/text?
+            // If expected output has significant text (more than just numbers and whitespace),
+            // and user output is *only* numbers, we should probably fail or warn.
+            // Heuristic: Remove numbers and whitespace. If expected has text left, user should too.
+            const expText = normExpected.replace(/-?[\d,]*\.?\d+/g, "").trim();
+            const usrText = normUser.replace(/-?[\d,]*\.?\d+/g, "").trim();
+
+            if (expText.length > 5 && usrText.length < 2) {
+              // Expected "The volume of a sphere..." but User printed nothing (just numbers).
+              const failResult = {
+                correct: false,
+                stars: 0,
+                feedback:
+                  "Missing Text: You printed the correct number, but missing the descriptive text or prompts.",
+                executionTimeMs: 0,
+              };
+              setState((prev) => ({
+                ...prev,
+                output:
+                  prev.output +
+                  "\n❌ MISSING TEXT/PROMPTS\n-----------------------\n" +
+                  "Your calculated answer is correct, but the output format is too simple.\n" +
+                  "Expected something like: " +
+                  normExpected.substring(0, 30) +
+                  "...\n" +
+                  "Actual: " +
+                  normUser +
+                  "\n" +
+                  "💡 Tip: Include the text prompts as asked in the problem.\n",
+              }));
+              return failResult;
+            }
+
+            // Otherwise, treat as correct.
+            // Continue loop (implicit success for this input)
+          } else {
+            // [New] Check for "Missing Result" scenario:
+            // User printed *some* numbers, but they are all input echoes.
+            // This means they likely printed prompts ("Enter Radius: 5") but not the volume.
+            const nonEchoNumbers = usrNums.filter(
+              (u) => !inputNums.some((i) => Math.abs(u - i) < 0.001),
+            );
+
+            if (
+              usrNums.length > 0 &&
+              nonEchoNumbers.length === 0 &&
+              expNums.length > 0
+            ) {
+              const failResult = {
+                correct: false,
+                stars: 0,
+                feedback: "Missing Output: You didn't print the answer.",
+                executionTimeMs: 0,
+              };
+              setState((prev) => ({
+                ...prev,
+                output:
+                  prev.output +
+                  "\n❌ MISSING RESULT\n-------------------\n" +
+                  "You printed the input (or prompt), but I don't see the calculated answer.\n" +
+                  "You need to print the result using `Console.WriteLine()`.\n" +
+                  "Example: Console.WriteLine(result);\n",
+              }));
+              return failResult;
+            }
+
+            const failResult = {
+              correct: false,
+              stars: 0,
+              feedback: `Test Failed. Expected: "${normExpected}"`,
+              executionTimeMs: 0,
+            };
+
+            setState((prev) => ({
+              ...prev,
+              output:
+                prev.output +
+                `\n❌ WRONG OUTPUT\n---------------------\nINPUT:    ${inputVal.replace(
+                  /\n/g,
+                  " ",
+                )}\nEXPECTED: "${normExpected}"\nACTUAL:   "${normUser}"\n`,
+            }));
+
+            return failResult;
+          }
         }
       } catch (err: any) {
         return {
           correct: false,
           stars: 0,
           feedback: `System Error during verification: ${err.message}`,
+          executionTimeMs: 0,
         };
       }
     }
 
-    // Grading Logic (if correct)
-    const solutionLength = currentChallenge.solution.length;
-    const userCodeLength = code.length;
-    let earnedStars = 1;
-    if (userCodeLength <= solutionLength * 1.2) earnedStars = 3;
-    else if (userCodeLength <= solutionLength * 1.5) earnedStars = 2;
+    // Grading Logic (Time-based)
+    const endTime = Date.now();
+    const executionTimeMs = endTime - state.startTime;
+    const elapsedMinutes = executionTimeMs / 60000;
 
-    return { correct: true, stars: earnedStars, feedback: "All tests passed!" };
+    let targetTime = currentChallenge.targetTimeMinutes || 5; // Default 5 mins
+    if (
+      !currentChallenge.targetTimeMinutes &&
+      currentChallenge.difficulty === "Medium"
+    )
+      targetTime = 10;
+    if (
+      !currentChallenge.targetTimeMinutes &&
+      currentChallenge.difficulty === "Hard"
+    )
+      targetTime = 20;
+
+    let earnedStars = 1;
+    if (elapsedMinutes <= targetTime) earnedStars = 3;
+    else if (elapsedMinutes <= targetTime * 1.5) earnedStars = 2;
+
+    const timeMsg = `Time: ${elapsedMinutes.toFixed(
+      1,
+    )}m / Target: ${targetTime}m`;
+
+    setState((prev) => ({
+      ...prev,
+      output: prev.output + "\n✅ Validation Passed! All tests correct.\n",
+    }));
+
+    return {
+      correct: true,
+      stars: earnedStars,
+      feedback: `All tests passed!\n${timeMsg}`,
+      executionTimeMs,
+    };
   };
 
   const handleComplete = async () => {
@@ -461,6 +867,7 @@ export const ChallengeProvider = ({
     if (!result.correct) {
       setState((prev) => ({
         ...prev,
+        showTerminal: true, // Ensure terminal is open
         output: prev.output + "\n\n❌ " + result.feedback,
       }));
       return;
@@ -476,57 +883,90 @@ export const ChallengeProvider = ({
         `\nYou earned ${result.stars} Stars!`,
     }));
 
-    if (!state.completed.includes(currentChallenge.id)) {
-      const xpEarned = currentChallenge.xpReward || 20;
-      const coinsEarned = currentChallenge.coinsReward || 5;
+    const isFirstTime = !state.completed.includes(currentChallenge.id);
+    const previousStars = state.stars[currentChallenge.id] || 0;
+    const starsDelta = Math.max(0, result.stars - previousStars);
+    const improvedScore = result.stars > previousStars;
 
-      const newExp = state.exp + xpEarned;
-      const levelUp = newExp >= state.levelThreshold;
+    // Rewards (only if first time)
+    // Note: If you want to award difference in XP based on stars, logic would be complex.
+    // For now, staying with "XP/Coins only on first completion" as implied by previous code.
+    const xpEarned = isFirstTime ? currentChallenge.xpReward || 20 : 0;
+    const coinsEarned = isFirstTime ? currentChallenge.coinsReward || 5 : 0;
 
-      // 1. Optimistic Update
-      setState((prev) => ({
-        ...prev,
-        completed: [...prev.completed, currentChallenge.id],
-        stars: {
-          ...prev.stars,
-          [currentChallenge.id]: result.stars,
-        },
-        exp: levelUp ? 0 : newExp,
-        level: levelUp ? prev.level + 1 : prev.level,
-        levelThreshold: levelUp
-          ? prev.levelThreshold + 20
-          : prev.levelThreshold,
-        coins: prev.coins + coinsEarned,
-        showHint: false,
-        showSuccessModal: true,
-      }));
+    const newExp = state.exp + xpEarned;
+    const levelUp = newExp >= state.levelThreshold;
 
-      // 2. Persist to DB
-      if (user) {
-        console.log(
-          "[HandleComplete] Saving progress for user:",
-          user.uid,
-          "Challenge:",
-          currentChallenge.id,
-        );
-        saveChallengeProgress(user.uid, currentChallenge, {
+    // 1. Optimistic Update
+    setState((prev) => ({
+      ...prev,
+      // Add to completed if not already
+      completed: isFirstTime
+        ? [...prev.completed, currentChallenge.id]
+        : prev.completed,
+      // Update stars only if improved
+      stars: {
+        ...prev.stars,
+        [currentChallenge.id]: Math.max(previousStars, result.stars),
+      },
+      exp: levelUp ? 0 : newExp,
+      level: levelUp ? prev.level + 1 : prev.level,
+      levelThreshold: levelUp ? prev.levelThreshold + 20 : prev.levelThreshold,
+      coins: prev.coins + coinsEarned,
+      showHint: false,
+      showSuccessModal: true,
+      lastEarnedStars: result.stars, // [NEW] Update last earned
+    }));
+
+    // 2. Persist to DB
+    if (user) {
+      console.log(
+        "[HandleComplete] Saving progress for user:",
+        user.uid,
+        "Challenge:",
+        currentChallenge.id,
+      );
+
+      // Update User Stars if we earned more
+      // Update User Stars if we earned more
+      // Note: We now handle this inside saveChallengeProgress to ensure atomic updates with other stats.
+      // The separate update logic has been removed here.
+
+      // Save Challenge Progress (Skip update if score not improved and not first time)
+      // Actually, if we get same stars, maybe we update 'last executed'?
+      // But user requested "restriction... only claim 3 stars".
+      // We'll update progress if it's an improvement or first time.
+      const shouldUpdateProgress = isFirstTime || improvedScore;
+
+      saveChallengeProgress(
+        user.uid,
+        currentChallenge,
+        {
           stars: result.stars,
           code: state.code,
-          executionTime: 0, // Todo: measure
+          executionTime: result.executionTimeMs,
           xpEarned: xpEarned,
           coinsEarned: coinsEarned,
-        }).then((res) => {
-          if (res.success) console.log("[HandleComplete] Save success!");
-          else console.error("[HandleComplete] Save failed:", res.error);
-        });
-      } else {
-        console.warn(
-          "[HandleComplete] User not logged in, cannot save progress.",
-        );
-      }
+          starsToAdd: starsDelta,
+        },
+        { skipProgressUpdate: !shouldUpdateProgress },
+      ).then((res: { success: boolean; error?: any }) => {
+        if (res.success) {
+          console.log("[HandleComplete] Save success!");
+          toast.success("Progress saved!");
+          // Force refresh of user data to update unlocks/rewards in UI
+          refreshUser();
+        } else {
+          console.error("[HandleComplete] Save failed:", res.error);
+          toast.error(
+            `Save failed: ${(res.error as any)?.message || "Unknown error"}`,
+          );
+        }
+      });
     } else {
-      // Already completed, just show modal
-      setState((prev) => ({ ...prev, showSuccessModal: true }));
+      console.warn(
+        "[HandleComplete] User not logged in, cannot save progress.",
+      );
     }
   };
 
@@ -560,11 +1000,44 @@ export const ChallengeProvider = ({
   };
 
   const useHint = () => {
-    if (state.coins >= 2) {
-      setState((prev) => ({ ...prev, coins: prev.coins - 2 }));
+    // 1. Check if user has hint powerups
+    if (state.hints > 0) {
+      // Deduct 1 hint
+      const newHints = state.hints - 1;
+      setState((prev) => ({ ...prev, hints: newHints }));
+
+      // Update DB
+      if (user) {
+        updateProfile({ hints: newHints }).then(() => {
+          toast.success("Hint Used!");
+        });
+      }
       return true;
     }
     return false;
+  };
+
+  const buyHint = () => {
+    const HINT_COST = 50;
+    if (state.coins >= HINT_COST) {
+      const newCoins = state.coins - HINT_COST;
+      const newHints = state.hints + 1;
+
+      setState((prev) => ({
+        ...prev,
+        coins: newCoins,
+        hints: newHints,
+      }));
+
+      // Update DB
+      if (user) {
+        updateProfile({ coins: newCoins, hints: newHints }).then(() => {
+          toast.success("Hint Bought! (-50 Coins)");
+        });
+      }
+    } else {
+      toast.error("Not enough coins! Need 50 coins.");
+    }
   };
 
   const setCode = (code: string) => {
@@ -596,6 +1069,7 @@ export const ChallengeProvider = ({
         handleCloseModal, // [NEW]
         toggleHint,
         useHint,
+        buyHint, // [NEW]
         setCurrentChallengeIndex, // Provide this to the context
       }}
     >

@@ -24,61 +24,9 @@ import {
   ChallengeProvider,
 } from "~/contexts/ChallengeContext"; // Import Challenge Context
 import { AvatarDisplay } from "~/components/dashboardmodule/AvatarDisplay";
+import { MODULES, type ModuleData } from "~/data/challenges"; // Import shared MODULES
 
-// --- Types ---
-interface ModuleData {
-  id: number;
-  title: string;
-  description: string;
-  status: "completed" | "unlocked" | "locked";
-  csharpTopic: string;
-}
-
-// --- Module Definitions (C# Focused) ---
-const MODULES: ModuleData[] = [
-  {
-    id: 1,
-    title: "The Basics",
-    description: "Your first steps in C# programming.",
-    status: "unlocked",
-    csharpTopic: "Console, Variables, Data Types",
-  },
-  {
-    id: 2,
-    title: "Control Flow",
-    description: "Making decisions with your code.",
-    status: "locked",
-    csharpTopic: "If/Else, Switch, Logic",
-  },
-  {
-    id: 3,
-    title: "Loops & Iterations",
-    description: "Automating repetitive tasks.",
-    status: "locked",
-    csharpTopic: "For, While, Do-While",
-  },
-  {
-    id: 4,
-    title: "Arrays & Collections",
-    description: "Storing and managing data groups.",
-    status: "locked",
-    csharpTopic: "Arrays, Lists, Dictionaries",
-  },
-  {
-    id: 5,
-    title: "Methods",
-    description: "Writing reusable functions.",
-    status: "locked",
-    csharpTopic: "Parameters, Return Types, Scope",
-  },
-  {
-    id: 6,
-    title: "OOP Essentials",
-    description: "Object-Oriented Programming basics.",
-    status: "locked",
-    csharpTopic: "Classes, Objects, Inheritance",
-  },
-];
+// --- Module Definitions removed (using shared) ---
 
 // --- Components ---
 
@@ -160,22 +108,24 @@ const ChallengeRow = ({
 
   return (
     <div
-      className={`flex items-center justify-between py-3 px-4 border-b border-gray-800/50 last:border-0 rounded-lg transition-colors group ${
+      className={`flex items-center justify-between py-3 px-4 border-b border-gray-100 dark:border-gray-800/50 last:border-0 rounded-lg transition-colors group ${
         status === "locked"
           ? "opacity-60 cursor-not-allowed bg-transparent"
-          : "hover:bg-white/5 cursor-pointer"
+          : "hover:bg-gray-50 dark:hover:bg-white/5 cursor-pointer"
       }`}
       onClick={handleStart} // Make whole row clickable if active
     >
       <div className="flex items-center gap-4">
-        <span className="text-gray-500 font-mono text-xs w-20 flex items-center gap-1">
+        <span className="text-gray-400 dark:text-gray-500 font-mono text-xs w-20 flex items-center gap-1">
           {status === "locked" && <Lock size={10} />}
           Exercise {challenge.id}
         </span>
         <div className="flex flex-col">
           <span
             className={`font-medium text-sm ${
-              status === "locked" ? "text-gray-500" : "text-gray-200"
+              status === "locked"
+                ? "text-gray-400 dark:text-gray-500"
+                : "text-gray-900 dark:text-gray-200"
             }`}
           >
             {challenge.title}
@@ -191,8 +141,8 @@ const ChallengeRow = ({
                   isCompleted
                     ? star <= earnedStars
                       ? "text-yellow-400 fill-yellow-400" // Earned
-                      : "text-gray-700" // Unearned but completed
-                    : "text-gray-800" // Not yet completed (Hollow/Dim)
+                      : "text-gray-300 dark:text-gray-700" // Unearned but completed
+                    : "text-gray-200 dark:text-gray-800" // Not yet completed (Hollow/Dim)
                 }
               />
             ))}
@@ -254,35 +204,39 @@ const ModuleSection = ({
 
       {/* Card */}
       <div
-        className={`bg-[#1E1E1E] rounded-xl border border-gray-800 overflow-hidden transition-all duration-300 ${
+        className={`bg-white dark:bg-[#1E1E1E] rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden transition-all duration-300 shadow-sm dark:shadow-none ${
           isLocked ? "opacity-80" : ""
         }`}
       >
         <div
           className={`p-5 flex items-center justify-between transition-colors ${
-            isLocked ? "cursor-not-allowed" : "cursor-pointer hover:bg-white/5"
+            isLocked
+              ? "cursor-not-allowed"
+              : "cursor-pointer hover:bg-gray-50 dark:hover:bg-white/5"
           }`}
           onClick={isLocked ? undefined : onToggle}
         >
           <div>
             <h3
               className={`text-lg font-bold flex items-center gap-3 ${
-                isLocked ? "text-gray-500" : "text-white"
+                isLocked ? "text-gray-500" : "text-gray-900 dark:text-white"
               }`}
             >
               {module.title}
               {isLocked && (
-                <span className="text-xs bg-gray-800 px-2 py-0.5 rounded text-gray-500 border border-gray-700">
+                <span className="text-xs bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded text-gray-500 border border-gray-200 dark:border-gray-700">
                   Locked
                 </span>
               )}
             </h3>
             {isOpen && (
               <div className="mt-1">
-                <p className="text-sm text-gray-400">{module.description}</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  {module.description}
+                </p>
                 <Badge
                   variant="outline"
-                  className="mt-2 text-[10px] py-0 h-5 border-blue-500/20 text-blue-400 bg-blue-500/5"
+                  className="mt-2 text-[10px] py-0 h-5 border-blue-500/20 text-blue-500 dark:text-blue-400 bg-blue-500/5"
                 >
                   {module.csharpTopic}
                 </Badge>
@@ -300,8 +254,8 @@ const ModuleSection = ({
 
         {/* Content */}
         {isOpen && !isLocked && (
-          <div className="border-t border-gray-800 bg-[#161b22] p-2">
-            <div className="bg-[#0F172A]/50 rounded-lg p-2">
+          <div className="border-t border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-[#161b22] p-2">
+            <div className="bg-white dark:bg-[#0F172A]/50 rounded-lg p-2 border border-gray-200 dark:border-transparent">
               {moduleChallenges.length > 0 ? (
                 moduleChallenges.map((challenge, idx) => {
                   // Calculate if this specific challenge is locked
@@ -341,13 +295,13 @@ const ModuleSection = ({
 // --- Sidebar Widgets (Connected to Real Data) ---
 
 const ProfileWidget = ({ user }: { user: any }) => (
-  <div className="bg-[#1E1E1E] rounded-xl border border-gray-800 p-6 mb-6">
+  <div className="bg-white dark:bg-[#1E1E1E] rounded-xl border border-gray-200 dark:border-gray-800 p-6 mb-6 shadow-sm dark:shadow-none">
     <div className="flex items-center gap-4 mb-4">
       <div className="w-12 h-12">
         {user.avatarConfig ? (
           <AvatarDisplay
             config={user.avatarConfig}
-            className="w-full h-full border-2 border-blue-500 rounded-full bg-gray-800"
+            className="w-full h-full border-2 border-blue-500 rounded-full bg-gray-100 dark:bg-gray-800"
             headOnly
           />
         ) : user.photoURL ? (
@@ -363,22 +317,22 @@ const ProfileWidget = ({ user }: { user: any }) => (
         )}
       </div>
       <div>
-        <h3 className="font-bold text-white truncate max-w-[150px]">
+        <h3 className="font-bold text-gray-900 dark:text-white truncate max-w-[150px]">
           {user.displayName || "Coder"}
         </h3>
-        <p className="text-sm text-blue-400 font-medium">
+        <p className="text-sm text-blue-500 dark:text-blue-400 font-medium">
           Level {user.level || 1}
         </p>
       </div>
     </div>
     <div className="grid grid-cols-2 gap-2 mb-4">
-      <div className="bg-gray-900/50 p-2 rounded border border-gray-800 flex flex-col items-center">
-        <span className="text-xs text-gray-500 uppercase">Hearts</span>
-        <span className="text-lg font-bold text-red-500 flex items-center gap-1">
-          {user.hearts || 5} <span className="text-[10px]">❤️</span>
+      <div className="bg-gray-50 dark:bg-gray-900/50 p-2 rounded border border-gray-200 dark:border-gray-800 flex flex-col items-center">
+        <span className="text-xs text-gray-500 uppercase">Stars</span>
+        <span className="text-lg font-bold text-yellow-500 flex items-center gap-1">
+          {user.stars || 0} <span className="text-[10px]">⭐</span>
         </span>
       </div>
-      <div className="bg-gray-900/50 p-2 rounded border border-gray-800 flex flex-col items-center">
+      <div className="bg-gray-50 dark:bg-gray-900/50 p-2 rounded border border-gray-200 dark:border-gray-800 flex flex-col items-center">
         <span className="text-xs text-gray-500 uppercase">Coins</span>
         <span className="text-lg font-bold text-yellow-500 flex items-center gap-1">
           {user.coins || 0} <span className="text-[10px]">🪙</span>
@@ -386,51 +340,70 @@ const ProfileWidget = ({ user }: { user: any }) => (
       </div>
     </div>
     <Link to="/profile">
-      <Button className="w-full bg-gray-800 hover:bg-gray-700 text-white font-semibold border border-gray-700 h-9">
+      <Button className="w-full bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-900 dark:text-white font-semibold border border-gray-200 dark:border-gray-700 h-9 transition-colors">
         View Profile
       </Button>
     </Link>
   </div>
 );
 
-const ProgressWidget = ({ user }: { user: any }) => {
-  // Basic calculation for progress bar (Demo logic)
-  // In real app, calculate actual totals
-  const totalXP = 1000; // Example cap for level
-  const progress = Math.min(((user.xp || 0) / totalXP) * 100, 100);
+const ProgressWidget = ({
+  user,
+  completed,
+}: {
+  user: any;
+  completed: string[];
+}) => {
+  // Machine Problems Progress
+  const totalChallenges = challenges.length;
+  const completedCount = completed.length;
+  const mpProgress =
+    totalChallenges > 0 ? (completedCount / totalChallenges) * 100 : 0;
+
+  // Stars Progress
+  const totalPossibleStars = totalChallenges * 3;
+  const userStars = user.stars || 0;
+  const starProgress =
+    totalPossibleStars > 0 ? (userStars / totalPossibleStars) * 100 : 0;
 
   return (
-    <div className="bg-[#1E1E1E] rounded-xl border border-gray-800 p-6 mb-6">
-      <h3 className="font-bold text-white mb-4 flex items-center gap-2">
+    <div className="bg-white dark:bg-[#1E1E1E] rounded-xl border border-gray-200 dark:border-gray-800 p-6 mb-6 shadow-sm dark:shadow-none">
+      <h3 className="font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
         <Award className="text-yellow-500" size={18} />
         Course Progress
       </h3>
 
       <div className="space-y-5">
+        {/* Machine Problems Progress */}
         <div>
           <div className="flex justify-between text-sm mb-1.5">
-            <span className="text-gray-400 flex items-center gap-2 font-medium">
-              <Book size={14} className="text-blue-400" /> Exercises
+            <span className="text-gray-500 dark:text-gray-400 flex items-center gap-2 font-medium">
+              <Code size={14} className="text-blue-500 dark:text-blue-400" />{" "}
+              Machine Problems
             </span>
-            <span className="text-gray-200 font-mono text-xs">
-              0 / {challenges.length}
-            </span>
-          </div>
-          <Progress value={0} className="h-1.5 bg-gray-800" />
-        </div>
-
-        <div>
-          <div className="flex justify-between text-sm mb-1.5">
-            <span className="text-gray-400 flex items-center gap-2 font-medium">
-              <Zap size={14} className="text-purple-400" /> Total XP
-            </span>
-            <span className="text-gray-200 font-mono text-xs">
-              {user.xp || 0}
+            <span className="text-gray-700 dark:text-gray-200 font-mono text-xs">
+              {completedCount} / {totalChallenges}
             </span>
           </div>
           <Progress
-            value={progress}
-            className="h-1.5 bg-gray-800 text-purple-500"
+            value={mpProgress}
+            className="h-1.5 bg-gray-100 dark:bg-gray-800"
+          />
+        </div>
+
+        {/* Stars Claimed Progress */}
+        <div>
+          <div className="flex justify-between text-sm mb-1.5">
+            <span className="text-gray-500 dark:text-gray-400 flex items-center gap-2 font-medium">
+              <Star size={14} className="text-yellow-400" /> Stars Claimed
+            </span>
+            <span className="text-gray-700 dark:text-gray-200 font-mono text-xs">
+              {userStars} / {totalPossibleStars}
+            </span>
+          </div>
+          <Progress
+            value={starProgress}
+            className="h-1.5 bg-gray-100 dark:bg-gray-800 text-yellow-500"
           />
         </div>
       </div>
@@ -439,19 +412,19 @@ const ProgressWidget = ({ user }: { user: any }) => {
 };
 
 const BadgesWidget = ({ user }: { user: any }) => (
-  <div className="bg-[#1E1E1E] rounded-xl border border-gray-800 p-6">
+  <div className="bg-white dark:bg-[#1E1E1E] rounded-xl border border-gray-200 dark:border-gray-800 p-6 shadow-sm dark:shadow-none">
     <div className="flex justify-between items-center mb-4">
-      <h3 className="font-bold text-white">Certificates</h3>
+      <h3 className="font-bold text-gray-900 dark:text-white">Certificates</h3>
       <span className="text-xs text-gray-500">0/6</span>
     </div>
     <div className="grid grid-cols-4 gap-2">
       {[1, 2, 3, 4].map((i) => (
         <div
           key={i}
-          className="aspect-square bg-gray-900 rounded-lg border border-gray-800 flex items-center justify-center group relative cursor-pointer hover:border-blue-500/50 transition-colors"
+          className="aspect-square bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 flex items-center justify-center group relative cursor-pointer hover:border-blue-500/50 transition-colors"
           title={`Module ${i} Badge`}
         >
-          <Award className="text-gray-700 w-6 h-6 group-hover:text-blue-500 transition-colors" />
+          <Award className="text-gray-400 dark:text-gray-700 w-6 h-6 group-hover:text-blue-500 transition-colors" />
         </div>
       ))}
     </div>
@@ -475,7 +448,7 @@ const ChallengesContent = () => {
   if (!user) return null; // Or Loading state
 
   return (
-    <div className="min-h-screen bg-[#0F172A] text-white font-sans selection:bg-blue-500/30">
+    <div className="min-h-screen bg-gray-50 dark:bg-[#0F172A] text-gray-900 dark:text-white font-sans selection:bg-blue-500/30">
       {/* Navigation Bar Placeholder (if any, typically App Header covers this) */}
 
       <div className="max-w-7xl mx-auto px-4 py-8 lg:px-8">
@@ -485,25 +458,22 @@ const ChallengesContent = () => {
             <div className="flex items-center gap-2 mb-2">
               <Badge
                 variant="outline"
-                className="border-green-500/30 text-green-400 bg-green-500/10 uppercase tracking-widest text-[10px]"
+                className="border-green-500/30 text-green-600 dark:text-green-400 bg-green-500/10 uppercase tracking-widest text-[10px]"
               >
                 Learning Path
               </Badge>
             </div>
-            <h1 className="text-3xl md:text-4xl font-black text-white mb-2 tracking-tight">
+            <h1 className="text-3xl md:text-4xl font-black text-gray-900 dark:text-white mb-2 tracking-tight">
               C# Mastery
             </h1>
-            <p className="text-gray-400 max-w-xl">
+            <p className="text-gray-500 dark:text-gray-400 max-w-xl">
               From "Hello World" to advanced Software Architecture. Your journey
               to becoming a .NET Developer starts here.
             </p>
           </div>
           <div className="flex gap-2">
             <Link to="/dashboard">
-              <Button
-                variant="ghost"
-                className="text-gray-400 hover:text-white border border-transparent hover:border-gray-700 hover:bg-gray-800"
-              >
+              <Button className="bg-blue-600 hover:bg-blue-700 text-white font-semibold border border-blue-500 shadow-sm shadow-blue-500/20">
                 Back to Dashboard
               </Button>
             </Link>
@@ -541,7 +511,7 @@ const ChallengesContent = () => {
           <div className="lg:col-span-1">
             <div className="sticky top-8">
               <ProfileWidget user={user} />
-              <ProgressWidget user={user} />
+              <ProgressWidget user={user} completed={completed} />
               <BadgesWidget user={user} />
             </div>
           </div>

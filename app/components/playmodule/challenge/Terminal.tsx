@@ -5,7 +5,9 @@ import { useChallengeContext } from "~/contexts/ChallengeContext";
 
 import "ace-builds/src-noconflict/mode-text";
 import "ace-builds/src-noconflict/theme-dracula";
+import "ace-builds/src-noconflict/theme-github";
 import "ace-builds/src-noconflict/ext-language_tools";
+import { useThemeDetector } from "~/hooks/useThemeDetector";
 
 interface TerminalProps {
   className?: string;
@@ -15,6 +17,7 @@ const Terminal = ({ className }: TerminalProps) => {
   const { output, setOutput, isWaitingForInput, submitTerminalInput } =
     useChallengeContext();
   const aceRef = useRef<any>(null);
+  const isDark = useThemeDetector();
 
   // Refs for stable access inside Ace commands (avoids stale closures)
   const historyRef = useRef<string | null>(null);
@@ -63,22 +66,13 @@ const Terminal = ({ className }: TerminalProps) => {
 
   return (
     <div
-      className={`flex flex-col h-full bg-[#282a36] border-t border-gray-800 ${className}`}
+      className={`flex flex-col h-full bg-white dark:bg-[#282a36] border-t border-gray-200 dark:border-gray-800 ${className}`}
     >
-      <div className="flex items-center justify-between px-4 py-2 bg-[#1e1f29] border-b border-gray-800">
-        <span className="text-xs font-medium text-gray-400 font-mono">
-          CONSOLE OUTPUT
-        </span>
-        <div className="flex gap-1">
-          <div className="w-2 h-2 rounded-full bg-gray-600" />
-          <div className="w-2 h-2 rounded-full bg-gray-600" />
-        </div>
-      </div>
       <div className="flex-1 relative">
         <AceEditor
           ref={aceRef}
           mode="text"
-          theme="dracula"
+          theme={isDark ? "dracula" : "github"}
           name="terminal_output"
           width="100%"
           height="100%"

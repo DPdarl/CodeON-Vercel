@@ -21,7 +21,7 @@ const Header = () => {
         >
           <div className="flex items-center gap-2">
             <img
-              src="/assets/logo-icon.svg"
+              src="/assets/icons/CodeONTextLogoDark.png"
               alt="CodeON"
               className="w-6 h-6 hidden"
             />

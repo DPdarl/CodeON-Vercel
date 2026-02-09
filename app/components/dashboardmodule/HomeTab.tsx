@@ -14,6 +14,7 @@ import { useNavigate } from "@remix-run/react";
 import { useAuth } from "~/contexts/AuthContext";
 import { supabase } from "~/lib/supabase";
 import { Challenge } from "~/types/challenge.types";
+import { MODULES } from "~/data/challenges"; // Imported MODULES
 import { SelectionCarousel } from "./SelectionCarousel";
 import { calculateProgress } from "~/lib/leveling-system";
 import { TrophyIcon, CrownIcon, StarIcon } from "../ui/Icons"; // Removed FlameIcon
@@ -101,9 +102,18 @@ export function HomeTab({ onTabChange, isActive = true }: HomeTabProps) {
 
       if (challengeError) throw challengeError;
       if (challengeData) {
-        const sorted = (challengeData as Challenge[]).sort(
-          (a, b) => a.page - b.page,
-        );
+        const mapped = (challengeData as any[]).map((c) => ({
+          ...c,
+          // Map DB snake_case to camelCase
+          starterCode: c.starter_code || c.starterCode,
+          xpReward: c.xp_reward || c.xpReward,
+          coinsReward: c.coins_reward || c.coinsReward,
+          moduleId: c.module_id || parseInt(c.id.split(".")[0]), // Derive module ID if missing
+          difficulty: c.difficulty || "Easy", // Fallback
+          // Add other mappings if necessary, e.g., targetTimeMinutes -> target_time_minutes
+        })) as Challenge[];
+
+        const sorted = mapped.sort((a, b) => (a.page || 0) - (b.page || 0));
         setChallenges(sorted);
       }
 
@@ -135,9 +145,11 @@ export function HomeTab({ onTabChange, isActive = true }: HomeTabProps) {
   const progressData = calculateProgress(user?.xp || 0);
 
   // Use explicit 'any' cast here if 'completedChallenges' is not yet in your UserData interface
-  // This ensures the UI works now (showing 0) and works later when you add the DB field.
-  const completedChallengesCount =
-    (user as any)?.completedChallenges?.length || 0;
+  // using completedMachineProblems as per investigation
+  const completedMachineProblems =
+    (user as any)?.completedMachineProblems || [];
+
+  const completedChallengesCount = completedMachineProblems.length;
 
   const stats = {
     level: progressData.currentLevel,
@@ -150,7 +162,7 @@ export function HomeTab({ onTabChange, isActive = true }: HomeTabProps) {
   };
 
   const handleSelectChallenge = (challenge: Challenge) => {
-    navigate(`/solo-challenge`, { state: { challenge } });
+    navigate(`/play/challenges`);
   };
 
   const containerVariants = {
@@ -300,33 +312,34 @@ export function HomeTab({ onTabChange, isActive = true }: HomeTabProps) {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3 }}
-        className="group relative overflow-hidden rounded-3xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-md hover:shadow-xl transition-all duration-300"
+        className="group relative overflow-hidden rounded-[2rem] border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#0B0B15] shadow-xl hover:shadow-2xl transition-all duration-300"
       >
-        <div className="absolute inset-0 bg-gradient-to-r from-orange-500/5 to-red-500/5 dark:from-orange-900/20 dark:to-red-900/20 opacity-0 group-hover:opacity-100 transition-opacity" />
+        <div className="absolute inset-0 bg-gradient-to-r from-orange-500/5 to-red-500/5 dark:from-orange-500/10 dark:to-red-500/10 opacity-100 dark:opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+        <div className="absolute -right-20 -top-20 w-64 h-64 bg-orange-100 dark:bg-orange-600/20 rounded-full blur-[80px] pointer-events-none opacity-50 dark:opacity-100" />
 
-        <div className="relative p-6 md:p-8 flex flex-col md:flex-row items-center justify-between gap-6">
-          <div className="flex items-start gap-5">
-            <div className="h-16 w-16 shrink-0 rounded-2xl bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center text-orange-600 dark:text-orange-400 shadow-sm">
-              <Compass className="w-8 h-8" />
+        <div className="relative p-8 flex flex-col md:flex-row items-center justify-between gap-8">
+          <div className="flex items-start gap-6">
+            <div className="h-20 w-20 shrink-0 rounded-2xl bg-orange-50 dark:bg-[#151520] border border-orange-100 dark:border-gray-800 flex items-center justify-center text-orange-500 shadow-sm dark:shadow-orange-900/20 group-hover:scale-110 transition-transform duration-500">
+              <Compass className="w-10 h-10 drop-shadow-sm dark:drop-shadow-[0_0_10px_rgba(249,115,22,0.5)]" />
             </div>
             <div>
-              <div className="flex items-center gap-2 mb-1">
-                <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-300">
+              <div className="flex items-center gap-3 mb-2">
+                <span className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 border border-orange-200 dark:border-orange-500/30">
                   Adventure Mode
                 </span>
                 {adventureProgress.isCompleted && (
-                  <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-green-100 text-green-700">
+                  <span className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 border border-green-200 dark:border-green-500/30">
                     Completed
                   </span>
                 )}
               </div>
-              <h3 className="text-2xl font-bold text-gray-900 dark:text-white">
+              <h3 className="text-3xl font-black text-gray-900 dark:text-white mb-2 tracking-tight">
                 {adventureProgress.isCompleted
                   ? "All Adventures Completed!"
                   : "Where you left off"}
               </h3>
 
-              <p className="text-gray-500 dark:text-gray-400 mt-1 max-w-md">
+              <p className="text-gray-500 dark:text-gray-400 leading-relaxed max-w-lg text-sm">
                 {adventureProgress.isCompleted ? (
                   "You have mastered all currently available chapters. Feel free to replay any level."
                 ) : (
@@ -345,7 +358,7 @@ export function HomeTab({ onTabChange, isActive = true }: HomeTabProps) {
 
           <Button
             onClick={() => navigate("/play/adventure")}
-            className="w-full md:w-auto h-12 px-8 text-base font-bold bg-orange-600 hover:bg-orange-700 text-white rounded-xl shadow-lg shadow-orange-500/20 transition-transform active:scale-95"
+            className="w-full md:w-auto h-14 px-8 text-base font-bold bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white rounded-xl shadow-lg shadow-orange-500/20 transition-all hover:scale-105 active:scale-95 border border-orange-500/20"
           >
             {/* ✅ UPDATED BUTTON LOGIC */}
             {adventureBtnText}
@@ -365,25 +378,123 @@ export function HomeTab({ onTabChange, isActive = true }: HomeTabProps) {
           <div>
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
               <Code2 className="w-6 h-6 text-indigo-500" />
-              Practice Arena
+              {/* Module Title Logic */}
+              {(() => {
+                // Find active module
+                let activeModule = MODULES[0];
+                for (const mod of MODULES) {
+                  const modChallenges = challenges.filter(
+                    (c) => c.moduleId === mod.id,
+                  );
+                  const isComplete = modChallenges.every((c) =>
+                    completedMachineProblems.includes(c.id),
+                  );
+                  if (!isComplete) {
+                    activeModule = mod;
+                    break;
+                  }
+                  activeModule = mod; // Keep updating to last if all complete so far
+                }
+
+                // Get challenges for this module to find range
+                const modChallenges = challenges.filter(
+                  (c) => c.moduleId === activeModule.id,
+                );
+                const firstId =
+                  modChallenges.length > 0 ? modChallenges[0].id : "?";
+                const lastId =
+                  modChallenges.length > 0
+                    ? modChallenges[modChallenges.length - 1].id
+                    : "?";
+
+                return (
+                  <span className="flex items-center gap-2 text-xl font-bold">
+                    <span className="text-gray-900 dark:text-white">
+                      Module {activeModule.id} : {activeModule.title}
+                    </span>
+                    <span className="text-gray-500 text-base font-normal">
+                      ({firstId} - {lastId})
+                    </span>
+                  </span>
+                );
+              })()}
             </h2>
-            <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
-              Complete challenges in order to unlock the next one.
-            </p>
+
+            {/* Progress Bar Logic */}
+            <div className="mt-3 max-w-lg">
+              {(() => {
+                let activeModule = MODULES[0];
+                for (const mod of MODULES) {
+                  const modChallenges = challenges.filter(
+                    (c) => c.moduleId === mod.id,
+                  );
+                  if (
+                    !modChallenges.every((c) =>
+                      completedMachineProblems.includes(c.id),
+                    )
+                  ) {
+                    activeModule = mod;
+                    break;
+                  }
+                  activeModule = mod;
+                }
+                const modChallenges = challenges.filter(
+                  (c) => c.moduleId === activeModule.id,
+                );
+                const completedCount = modChallenges.filter((c) =>
+                  completedMachineProblems.includes(c.id),
+                ).length;
+                const total = modChallenges.length;
+                const percent = total > 0 ? (completedCount / total) * 100 : 0;
+
+                return (
+                  <div className="flex items-center gap-3">
+                    <div className="flex-1 h-2 bg-gray-800/50 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-blue-500 rounded-full transition-all duration-500"
+                        style={{ width: `${percent}%` }}
+                      />
+                    </div>
+                    <span className="text-xs text-gray-500 font-mono font-bold">
+                      {Math.round(percent)}%
+                    </span>
+                  </div>
+                );
+              })()}
+            </div>
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-gray-50 to-white dark:from-gray-900 dark:to-gray-900/50 rounded-[2rem] p-6 border border-gray-100 dark:border-gray-800 shadow-sm relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/5 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none" />
+        <div className="bg-white dark:bg-[#050510] rounded-[2rem] p-6 border border-gray-200 dark:border-gray-800 shadow-xl relative overflow-hidden transition-colors duration-300">
+          {/* Subtle Glow */}
+          <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-50 dark:bg-indigo-900/10 rounded-full blur-[100px] -mr-32 -mt-32 pointer-events-none" />
 
           <div className="relative z-10">
             {challenges.length > 0 ? (
               <SelectionCarousel
-                challenges={challenges}
+                challenges={(() => {
+                  // Filter challenges to CURRENT MODULE only
+                  let activeModule = MODULES[0];
+                  for (const mod of MODULES) {
+                    const modChallenges = challenges.filter(
+                      (c) => c.moduleId === mod.id,
+                    );
+                    if (
+                      !modChallenges.every((c) =>
+                        completedMachineProblems.includes(c.id),
+                      )
+                    ) {
+                      activeModule = mod;
+                      break;
+                    }
+                    activeModule = mod;
+                  }
+                  return challenges.filter(
+                    (c) => c.moduleId === activeModule.id,
+                  );
+                })()}
                 onSelectChallenge={handleSelectChallenge}
-                // NOTE: If you are using 'completedChapters' for this logic currently, keep it.
-                // If you have a separate array for challenges, switch this to: user?.completedChallenges || []
-                completedChallenges={user?.completedChapters || []}
+                completedChallenges={completedMachineProblems}
               />
             ) : (
               <div className="text-center py-20 rounded-xl border border-dashed border-gray-300 dark:border-gray-700">
@@ -401,15 +512,24 @@ export function HomeTab({ onTabChange, isActive = true }: HomeTabProps) {
 
 function StatCard({ icon: Icon, label, value, color, bgColor }: any) {
   return (
-    <div className="bg-white dark:bg-gray-900 rounded-2xl p-4 border border-gray-100 dark:border-gray-800 shadow-sm dark:hover:shadow-white hover:shadow-md flex items-center gap-4 transition-transform hover:scale-105">
-      <div className={`p-3 rounded-xl ${bgColor}`}>
-        <Icon className={`w-8 h-8 ${color}`} />
+    <div className="group bg-white dark:bg-[#0B0B15] rounded-[1.5rem] p-5 border border-gray-200 dark:border-gray-800 shadow-lg hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 relative overflow-hidden">
+      <div
+        className={`absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity ${color}`}
+      >
+        <Icon className="w-24 h-24 transform translate-x-8 -translate-y-8" />
+      </div>
+      <div
+        className={`w-12 h-12 rounded-xl bg-gray-50 dark:bg-[#151520] border border-gray-100 dark:border-gray-800 flex items-center justify-center mb-4 ${color}`}
+      >
+        <Icon
+          className={`w-6 h-6 drop-shadow-sm dark:drop-shadow-[0_0_8px_rgba(255,255,255,0.2)]`}
+        />
       </div>
       <div>
-        <div className="text-2xl font-black text-gray-900 dark:text-white">
+        <div className="text-3xl font-black text-gray-900 dark:text-white tracking-tight font-mono">
           {value}
         </div>
-        <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+        <div className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-1">
           {label}
         </div>
       </div>

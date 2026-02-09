@@ -19,6 +19,8 @@ export const saveChallengeProgress = async (
   },
 ) => {
   // 1. Upsert Challenge Progress
+  const now = new Date().toISOString();
+
   const { error: progressError } = await supabase
     .from("user_challenge_progress")
     .upsert(
@@ -29,7 +31,7 @@ export const saveChallengeProgress = async (
         stars: results.stars,
         code_submitted: results.code,
         execution_time_ms: results.executionTime,
-        executed_at: new Date().toISOString(),
+        executed_at: now,
       },
       { onConflict: "user_id, challenge_id" },
     );
@@ -42,6 +44,7 @@ export const saveChallengeProgress = async (
   // 2. Insert Match History (as requested)
   // Mode: 'challenge', Winner: 'User' (Single player), Results: JSON
   const { error: historyError } = await supabase.from("match_history").insert({
+    user_id: userId, // Ensure player can see this history
     mode: "challenge",
     winner_name: "You", // Or fetch user name? "You" is fine for single view, or leave null.
     participants_count: 1,
@@ -51,7 +54,7 @@ export const saveChallengeProgress = async (
       xp: results.xpEarned,
       coins: results.coinsEarned,
     },
-    played_at: new Date().toISOString(),
+    played_at: now,
   });
 
   if (historyError) console.error("Error saving history:", historyError);
