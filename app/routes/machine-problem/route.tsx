@@ -32,7 +32,7 @@ import { ExitConfirmationModal } from "~/components/playmodule/challenge/ExitCon
 // ... (imports)
 
 const MachineProblemSkeleton = () => (
-  <div className="h-screen bg-background text-foreground flex flex-col font-sans overflow-hidden">
+  <div className="h-[100dvh] bg-background text-foreground flex flex-col font-sans overflow-hidden">
     {/* Header Skeleton */}
     <div className="h-14 border-b border-border bg-card/50 flex items-center px-4 justify-between">
       <div className="flex items-center gap-4">
@@ -192,7 +192,7 @@ const MachineProblemContent = () => {
 
   // ... rest of component ...
   return (
-    <div className="h-screen bg-background text-foreground flex flex-col font-sans overflow-hidden">
+    <div className="h-[100dvh] bg-background text-foreground flex flex-col font-sans overflow-hidden">
       {/* 1. Header */}
       <MachineProblemHeader activeTab={activeTab} onTabChange={setActiveTab} />
 
