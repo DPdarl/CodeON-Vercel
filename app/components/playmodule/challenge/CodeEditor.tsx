@@ -46,8 +46,8 @@ const CodeEditor = ({
     const editor = editorInstance;
     const monaco = monacoInstance;
 
-    // 1. Disable Context Menu
-    editor.updateOptions({ contextmenu: false });
+    // 1. Disable Context Menu - REMOVED to allow selection on mobile
+    // editor.updateOptions({ contextmenu: false });
 
     // 2. Block Key Commands (Ctrl+C, Ctrl+V, Ctrl+X) inside Editor
     // Note: KeyCode.KeyC is correct for modern Monaco.
@@ -65,6 +65,9 @@ const CodeEditor = ({
     const domNode = editor.getDomNode();
     if (domNode) {
       const preventer = (e: any) => {
+        // Allow context menu to pass through so mobile users can select text
+        if (e.type === "contextmenu") return;
+
         e.preventDefault();
         e.stopPropagation();
         toast.warning(
@@ -77,14 +80,14 @@ const CodeEditor = ({
       domNode.addEventListener("paste", preventer, true);
       domNode.addEventListener("copy", preventer, true);
       domNode.addEventListener("cut", preventer, true);
-      domNode.addEventListener("contextmenu", preventer, true);
+      // domNode.addEventListener("contextmenu", preventer, true); // ALLOW context menu
 
       // Cleanup not strictly necessary for "always on" but good practice
       return () => {
         domNode.removeEventListener("paste", preventer, true);
         domNode.removeEventListener("copy", preventer, true);
         domNode.removeEventListener("cut", preventer, true);
-        domNode.removeEventListener("contextmenu", preventer, true);
+        // domNode.removeEventListener("contextmenu", preventer, true);
       };
     }
   }, [disableCopyPaste, editorInstance, monacoInstance]);

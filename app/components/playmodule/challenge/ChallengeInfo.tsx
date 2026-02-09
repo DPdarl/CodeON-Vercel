@@ -11,18 +11,33 @@ const ChallengeInfo = () => {
   // or simplified here. For now, assuming parent handles major notifications
   // or we use a separate Toast context. Using simple alerts for critical feedback if needed.
 
-  const { currentChallenge, showHint, toggleHint, handleComplete, useHint } =
-    useChallengeContext();
+  const {
+    currentChallenge,
+    showHint,
+    toggleHint,
+    handleComplete,
+    useHint,
+    hints,
+    buyHint,
+    coins,
+  } = useChallengeContext();
 
   const [activeTab, setActiveTab] = useState("description");
 
   const handleHintClick = () => {
     if (showHint) {
       toggleHint();
-    } else if (useHint()) {
-      toggleHint();
     } else {
-      alert("Not enough coins! Complete challenges to earn more."); // Simple fallback
+      if (hints > 0) {
+        if (useHint()) {
+          toggleHint();
+        }
+      } else {
+        // No hints, try to buy
+        if (confirm(`Buy a hint for 50 coins? (You have ${coins} coins)`)) {
+          buyHint();
+        }
+      }
     }
   };
 
@@ -57,23 +72,25 @@ const ChallengeInfo = () => {
 
         <div className="flex gap-2">
           <Button
-            onClick={handleSubmit}
-            className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm group"
-          >
-            <CheckCircle className="w-4 h-4 mr-2 group-hover:scale-110 transition-transform" />
-            Submit Solution
-          </Button>
-          <Button
             variant="outline"
-            className="border-border bg-background hover:bg-muted text-muted-foreground"
+            className="border-border bg-background hover:bg-muted text-muted-foreground flex items-center gap-2"
             onClick={handleHintClick}
           >
             {showHint ? (
-              <HelpCircle className="w-4 h-4 mr-2" />
+              <>
+                <HelpCircle className="w-4 h-4" /> Hide Hint
+              </>
+            ) : hints > 0 ? (
+              <>
+                <Lightbulb className="w-4 h-4 text-yellow-500" />
+                Get Hint ({hints} left)
+              </>
             ) : (
-              <Lightbulb className="w-4 h-4 mr-2 text-yellow-500" />
+              <>
+                <Lightbulb className="w-4 h-4 text-muted-foreground" />
+                Buy Hint (50 🪙)
+              </>
             )}
-            {showHint ? "Hide Hint" : "Get Hint"}
           </Button>
         </div>
       </div>
