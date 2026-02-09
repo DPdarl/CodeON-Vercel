@@ -77,14 +77,14 @@ const CodeEditor = ({
       domNode.addEventListener("paste", preventer, true);
       domNode.addEventListener("copy", preventer, true);
       domNode.addEventListener("cut", preventer, true);
-      domNode.addEventListener("contextmenu", preventer, true);
+      // domNode.addEventListener("contextmenu", preventer, true); // Allowed for mobile selection
 
       // Cleanup not strictly necessary for "always on" but good practice
       return () => {
         domNode.removeEventListener("paste", preventer, true);
         domNode.removeEventListener("copy", preventer, true);
         domNode.removeEventListener("cut", preventer, true);
-        domNode.removeEventListener("contextmenu", preventer, true);
+        // domNode.removeEventListener("contextmenu", preventer, true);
       };
     }
   }, [disableCopyPaste, editorInstance, monacoInstance]);
@@ -179,6 +179,7 @@ const CodeEditor = ({
           onMount={handleEditorDidMount}
           beforeMount={handleBeforeMount}
           options={{
+            automaticLayout: true,
             fontFamily: "'Fira Code', 'Cascadia Code', Consolas, monospace",
             fontSize: 14,
             lineHeight: 24,

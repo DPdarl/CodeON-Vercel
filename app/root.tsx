@@ -11,6 +11,7 @@ import { Toaster } from "sonner";
 
 import "./tailwind.css";
 import { AuthProvider } from "./contexts/AuthContext";
+import React from "react";
 
 export const links: LinksFunction = () => [
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
@@ -74,13 +75,45 @@ export function Layout({ children }: { children: React.ReactNode }) {
       <body className="min-h-screen bg-background font-sans antialiased text-foreground">
         <AuthProvider>{children}</AuthProvider>
 
-        <Toaster position="bottom-center" richColors />
+        <ResponsiveToaster />
 
         <ScrollRestoration />
         <Scripts />
       </body>
     </html>
   );
+}
+
+function ResponsiveToaster() {
+  // Default to bottom-center (Desktop)
+  const [position, setPosition] = React.useState<
+    "bottom-center" | "top-center"
+  >("bottom-center");
+
+  React.useEffect(() => {
+    const checkMobile = () => {
+      // Standard mobile breakpoint check (md is usually 768px in Tailwind)
+      if (window.matchMedia("(max-width: 768px)").matches) {
+        setPosition("top-center");
+      } else {
+        setPosition("bottom-center");
+      }
+    };
+
+    // Initial check
+    checkMobile();
+
+    // Listener
+    const mediaQuery = window.matchMedia("(max-width: 768px)");
+    const handler = (e: MediaQueryListEvent) => {
+      setPosition(e.matches ? "top-center" : "bottom-center");
+    };
+
+    mediaQuery.addEventListener("change", handler);
+    return () => mediaQuery.removeEventListener("change", handler);
+  }, []);
+
+  return <Toaster position={position} richColors />;
 }
 
 export default function App() {
