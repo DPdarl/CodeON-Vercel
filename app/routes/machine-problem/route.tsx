@@ -246,7 +246,7 @@ const MachineProblemContent = () => {
 
         {/* COL 2: Editor (Flexible) */}
         <div
-          className={`flex flex-col border-r border-border relative bg-[#1E1E1E] transition-all duration-300 ease-in-out ${
+          className={`flex flex-col border-r border-border relative bg-[#1E1E1E] transition-all duration-300 ease-in-out overflow-hidden min-h-0 ${
             // Desktop width logic
             isInstructionsCollapsed ? "md:w-[60%]" : "md:w-[45%]"
           } ${
@@ -265,7 +265,7 @@ const MachineProblemContent = () => {
             {/* Spacer / Add File Button could go here */}
           </div>
 
-          <div className="flex-1 relative">
+          <div className="flex-1 relative overflow-hidden min-h-0">
             <ClientOnly fallback={<ComponentSkeleton />}>
               {() => (
                 <CodeEditor
