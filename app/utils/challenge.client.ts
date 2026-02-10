@@ -125,9 +125,9 @@ export const saveChallengeProgress = async (
 export const fetchUserProgress = async (userId: string) => {
   const { data, error } = await supabase
     .from("user_challenge_progress")
-    .select("challenge_id, stars");
+    .select("challenge_id, stars, code_submitted"); // [NEW] Fetch submitted code
 
   if (error || !data) return [];
-  // Return array of { challenge_id, stars }
+  // Return array of { challenge_id, stars, code_submitted }
   return data;
 };

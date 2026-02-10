@@ -7,7 +7,7 @@ import {
   defineTheme,
   defineLightTheme,
 } from "~/utils/monaco-csharp";
-import { Play } from "lucide-react";
+import { Play, Lock, PenLine, Undo2, Redo2, Eraser } from "lucide-react";
 import { lintCode } from "~/utils/linter";
 import { toast } from "sonner";
 import { useThemeDetector } from "~/hooks/useThemeDetector";
@@ -21,13 +21,33 @@ const CodeEditor = ({
   className,
   disableCopyPaste = false,
 }: CodeEditorProps) => {
-  const { code, setCode, currentChallenge, handleRun, diagnostics } =
-    useChallengeContext();
+  const {
+    code,
+    setCode,
+    currentChallenge,
+    handleRun,
+    diagnostics,
+    isMobileEditMode, // [NEW]
+    setIsMobileEditMode, // [NEW]
+    isReviewMode, // [NEW]
+  } = useChallengeContext();
   const isDark = useThemeDetector();
 
   // Use state instead of refs to trigger effects when editor is ready
   const [editorInstance, setEditorInstance] = React.useState<any>(null);
   const [monacoInstance, setMonacoInstance] = React.useState<any>(null);
+
+  // Mobile Edit Mode State: Consumed from Context
+  const [isMobile, setIsMobile] = React.useState(false);
+
+  React.useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.matchMedia("(max-width: 768px)").matches);
+    };
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
 
   const handleEditorDidMount: OnMount = (editor, monaco) => {
     setEditorInstance(editor);
@@ -160,11 +180,68 @@ const CodeEditor = ({
           </span>
         </div>
 
+        {/* Review Mode Banner */}
+        {isReviewMode && (
+          <div className="flex items-center gap-2 px-2 py-0.5 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 rounded text-[10px] font-bold uppercase tracking-wider">
+            <span>Review Mode</span>
+            <Lock size={10} />
+          </div>
+        )}
+
         <div className="flex items-center gap-3">
           <span className="text-xs text-gray-500">
             C# {currentChallenge?.requiredVersion || "8.0"}
           </span>
-          {/* Internal Run Button Moved to Footer */}
+
+          {/* Mobile Actions: Undo, Redo, Clear Comments (Only show in Edit Mode) */}
+          {isMobile && isMobileEditMode && (
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => {
+                  editorInstance?.trigger("keyboard", "undo", null);
+                  editorInstance?.focus();
+                }}
+                className="p-1.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors"
+                title="Undo"
+              >
+                <Undo2 size={16} />
+              </button>
+              <button
+                onClick={() => {
+                  editorInstance?.trigger("keyboard", "redo", null);
+                  editorInstance?.focus();
+                }}
+                className="p-1.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors"
+                title="Redo"
+              >
+                <Redo2 size={16} />
+              </button>
+              <button
+                onClick={() => {
+                  if (
+                    confirm(
+                      "Are you sure you want to clear all comments? This cannot be easily undone outside of 'Undo'.",
+                    )
+                  ) {
+                    const currentVal = editorInstance?.getValue() || "";
+                    // Regex to remove single line comments //... and multi line /* ... */
+                    const noComments = currentVal
+                      .replace(/\/\/.*$/gm, "")
+                      .replace(/\/\*[\s\S]*?\*\//g, "");
+                    // Append 20 blank lines just in case
+                    const withLines = noComments.trimEnd() + "\n".repeat(20);
+
+                    editorInstance?.setValue(withLines);
+                    toast.success("Comments cleared!");
+                  }
+                }}
+                className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/30 rounded transition-colors"
+                title="Clear Comments"
+              >
+                <Eraser size={16} />
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -179,6 +256,8 @@ const CodeEditor = ({
           onMount={handleEditorDidMount}
           beforeMount={handleBeforeMount}
           options={{
+            readOnly: isReviewMode || (isMobile && !isMobileEditMode), // Auto-lock if Review Mode OR (Mobile & Read Mode)
+            domReadOnly: isReviewMode || (isMobile && !isMobileEditMode), // Prevents keyboard from popping up
             fixedOverflowWidgets: true,
             automaticLayout: true,
             fontFamily: "'Fira Code', 'Cascadia Code', Consolas, monospace",

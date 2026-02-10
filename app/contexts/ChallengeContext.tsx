@@ -47,6 +47,9 @@ interface ChallengeState {
   inputHistory: string[]; // [NEW] History of inputs for re-run strategy
   isLoading: boolean;
   isExecuting: boolean; // [NEW] Track code execution specifically
+  isMobileEditMode: boolean; // [NEW] Mobile Read/Edit Mode
+  isReviewMode: boolean; // [NEW] Read-only mode for completed challenges
+  submittedCodes: Record<string, string>; // [NEW] Cache of submitted code
 }
 
 // 2. Define the shape of the context value (state + functions)
@@ -66,6 +69,9 @@ interface ChallengeContextType extends ChallengeState {
   useHint: () => boolean;
   buyHint: () => void; // [NEW]
   setCurrentChallengeIndex: (index: number) => void;
+  setIsMobileEditMode: (enabled: boolean) => void; // [NEW]
+  handleRetry: () => void; // [NEW]
+  isReviewMode: boolean;
 }
 
 // 3. Create the context with a default value (or null)
@@ -111,6 +117,9 @@ export const ChallengeProvider = ({
     inputHistory: [], // [NEW]
     isLoading: true, // [NEW] Loading state
     isExecuting: false, // [NEW]
+    isMobileEditMode: false, // [NEW] Default to Read Mode
+    isReviewMode: false, // [NEW]
+    submittedCodes: {}, // [NEW]
   });
 
   const navigate = useNavigate(); // [NEW] Navigation hook
@@ -136,14 +145,22 @@ export const ChallengeProvider = ({
         const completedIds = user.completedMachineProblems || [];
 
         const starsMap: Record<string, number> = {};
+        const codesMap: Record<string, string> = {}; // [NEW]
+
         progressData.forEach((p: any) => {
-          if (p.challenge_id) starsMap[p.challenge_id] = p.stars || 0;
+          if (p.challenge_id) {
+            starsMap[p.challenge_id] = p.stars || 0;
+            if (p.code_submitted) {
+              codesMap[p.challenge_id] = p.code_submitted;
+            }
+          }
         });
 
         setState((prev) => ({
           ...prev,
           completed: completedIds,
           stars: starsMap,
+          submittedCodes: codesMap, // [NEW]
           isLoading: false, // [NEW] Sync done
         }));
       });
@@ -165,19 +182,57 @@ export const ChallengeProvider = ({
     setState((prev) => ({ ...prev, showSuccessModal: false }));
   };
 
+  const setIsMobileEditMode = (enabled: boolean) => {
+    setState((prev) => ({ ...prev, isMobileEditMode: enabled }));
+  };
+
+  const handleRetry = () => {
+    setState((prev) => ({
+      ...prev,
+      isReviewMode: false, // Unlock editor
+      isMobileEditMode: true, // Auto-enable edit mode on mobile
+    }));
+    toast.info("Retry Mode: Editor Unlocked");
+  };
+
   const currentChallenge = useMemo(
     () => challenges[state.currentChallengeIndex],
     [state.currentChallengeIndex],
   );
 
-  // Initialize code with starter code, sanitizing escaped newlines
+  // Initialize code with starter code or submitted code if completed
   useEffect(() => {
     if (currentChallenge) {
-      // Replace literal \\r\\n sequences with actual newlines
-      const cleanedCode = currentChallenge.starterCode.replace(/\\r\\n/g, "\n");
-      setState((prev) => ({ ...prev, code: cleanedCode, diagnostics: [] }));
+      const isCompleted = state.completed.includes(currentChallenge.id);
+
+      // If completed, load submitted code and set Review Mode
+      if (isCompleted) {
+        // Replace literal \\r\\n sequences with actual newlines
+        const savedCode = state.submittedCodes[currentChallenge.id];
+        const starter = currentChallenge.starterCode.replace(/\\r\\n/g, "\n");
+
+        setState((prev) => ({
+          ...prev,
+          code: savedCode ? savedCode.replace(/\\r\\n/g, "\n") : starter,
+          isReviewMode: true, // Auto-lock
+          diagnostics: [],
+        }));
+      } else {
+        // Not completed: Load starter code
+        // Replace literal \\r\\n sequences with actual newlines
+        const cleanedCode = currentChallenge.starterCode.replace(
+          /\\r\\n/g,
+          "\n",
+        );
+        setState((prev) => ({
+          ...prev,
+          code: cleanedCode,
+          isReviewMode: false,
+          diagnostics: [],
+        }));
+      }
     }
-  }, [currentChallenge]);
+  }, [currentChallenge, state.completed, state.submittedCodes]);
 
   // Calculate progress
   useEffect(() => {
@@ -1071,6 +1126,8 @@ export const ChallengeProvider = ({
         useHint,
         buyHint, // [NEW]
         setCurrentChallengeIndex, // Provide this to the context
+        setIsMobileEditMode: setIsMobileEditMode, // [FIX]
+        handleRetry, // [NEW]
       }}
     >
       {children}
