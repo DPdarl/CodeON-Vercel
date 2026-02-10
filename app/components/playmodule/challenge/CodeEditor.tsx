@@ -143,7 +143,7 @@ const CodeEditor = ({
 
   return (
     <div
-      className={`flex flex-col h-full bg-white dark:bg-[#1E1E1E] rounded-none overflow-hidden border-b border-gray-200 dark:border-gray-800 ${className}`}
+      className={`flex flex-col h-full min-h-0 bg-white dark:bg-[#1E1E1E] rounded-none overflow-hidden border-b border-gray-200 dark:border-gray-800 ${className}`}
     >
       {/* Editor Header */}
       <div className="flex items-center justify-between px-4 py-2 bg-gray-100 dark:bg-[#252526] border-b border-gray-200 dark:border-gray-800">
@@ -179,6 +179,7 @@ const CodeEditor = ({
           onMount={handleEditorDidMount}
           beforeMount={handleBeforeMount}
           options={{
+            fixedOverflowWidgets: true,
             automaticLayout: true,
             fontFamily: "'Fira Code', 'Cascadia Code', Consolas, monospace",
             fontSize: 14,
