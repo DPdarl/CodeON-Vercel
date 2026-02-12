@@ -18,6 +18,8 @@ import {
   fetchUserProgress,
 } from "~/utils/challenge.client";
 import { supabase } from "~/lib/supabase";
+import { useGameSound } from "~/hooks/useGameSound";
+import { calculateStreakUpdate } from "~/lib/streak-logic";
 
 // 1. Define the shape of the state
 interface ChallengeState {
@@ -50,6 +52,7 @@ interface ChallengeState {
   isMobileEditMode: boolean; // [NEW] Mobile Read/Edit Mode
   isReviewMode: boolean; // [NEW] Read-only mode for completed challenges
   submittedCodes: Record<string, string>; // [NEW] Cache of submitted code
+  executionTimes: Record<string, number>; // [NEW] Cache of execution times
 }
 
 // 2. Define the shape of the context value (state + functions)
@@ -72,6 +75,8 @@ interface ChallengeContextType extends ChallengeState {
   setIsMobileEditMode: (enabled: boolean) => void; // [NEW]
   handleRetry: () => void; // [NEW]
   isReviewMode: boolean;
+  reviewTime: number | null; // [NEW] Time to display in review mode
+  isExiting: boolean; // [NEW] Flag to bypass blocker
 }
 
 // 3. Create the context with a default value (or null)
@@ -120,10 +125,12 @@ export const ChallengeProvider = ({
     isMobileEditMode: false, // [NEW] Default to Read Mode
     isReviewMode: false, // [NEW]
     submittedCodes: {}, // [NEW]
+    executionTimes: {}, // [NEW]
   });
 
   const navigate = useNavigate(); // [NEW] Navigation hook
-  const { user, refreshUser, updateProfile } = useAuth();
+  const { user, refreshUser, updateProfile, syncUser } = useAuth(); // Added syncUser for streak updates
+  const { playSound } = useGameSound();
 
   // Sync basic stats from User Profile on mount
   useEffect(() => {
@@ -138,30 +145,36 @@ export const ChallengeProvider = ({
       }));
 
       // Fetch specific challenge progress
+      // Fetch specific challenge progress
       fetchUserProgress(user.uid).then((progressData) => {
-        // progressData is now [{ challenge_id, stars }, ...]
-        // We use user.completedMachineProblems for 'completed' source of truth
-        // because user_challenge_progress might exist while user stats were not updated (the bug).
+        // progressData is now [{ challenge_id, stars, code_submitted, execution_time_ms }, ...]
         const completedIds = user.completedMachineProblems || [];
 
         const starsMap: Record<string, number> = {};
         const codesMap: Record<string, string> = {}; // [NEW]
+        const timesMap: Record<string, number> = {}; // [NEW]
 
-        progressData.forEach((p: any) => {
-          if (p.challenge_id) {
-            starsMap[p.challenge_id] = p.stars || 0;
-            if (p.code_submitted) {
-              codesMap[p.challenge_id] = p.code_submitted;
+        if (progressData) {
+          progressData.forEach((p: any) => {
+            if (p.challenge_id) {
+              starsMap[p.challenge_id] = p.stars || 0;
+              if (p.code_submitted) {
+                codesMap[p.challenge_id] = p.code_submitted;
+              }
+              if (p.execution_time_ms) {
+                timesMap[p.challenge_id] = p.execution_time_ms;
+              }
             }
-          }
-        });
+          });
+        }
 
         setState((prev) => ({
           ...prev,
           completed: completedIds,
           stars: starsMap,
-          submittedCodes: codesMap, // [NEW]
-          isLoading: false, // [NEW] Sync done
+          submittedCodes: codesMap,
+          executionTimes: timesMap,
+          isLoading: false,
         }));
       });
     } else {
@@ -170,7 +183,11 @@ export const ChallengeProvider = ({
     }
   }, [user]);
 
+  // [NEW] Navigation Flag
+  const [isExiting, setIsExiting] = useState(false);
+
   const handleNextChallenge = () => {
+    setIsExiting(true); // [NEW] Bypass blocker
     // Navigate back to the challenges menu to claim rewards
     navigate("/play/challenges");
 
@@ -187,12 +204,20 @@ export const ChallengeProvider = ({
   };
 
   const handleRetry = () => {
+    if (currentChallenge) {
+      activeRetriesRef.current.add(currentChallenge.id); // [NEW] Mark as retrying
+    }
+
     setState((prev) => ({
       ...prev,
       isReviewMode: false, // Unlock editor
       isMobileEditMode: true, // Auto-enable edit mode on mobile
+      startTime: Date.now(), // Reset timer
+      output: "", // Clear output
+      diagnostics: [], // Clear diagnostics
+      code: currentChallenge?.starterCode.replace(/\\r\\n/g, "\n") || "", // [NEW] Reset to starter code
     }));
-    toast.info("Retry Mode: Editor Unlocked");
+    toast.info("Retry Mode: Timer restarted!");
   };
 
   const currentChallenge = useMemo(
@@ -200,39 +225,75 @@ export const ChallengeProvider = ({
     [state.currentChallengeIndex],
   );
 
+  // Track last initialized challenge to prevent resets on re-renders
+  const lastChallengeIdRef = React.useRef<string | null>(null);
+  const activeRetriesRef = React.useRef<Set<string>>(new Set()); // [NEW] Track retries
+
   // Initialize code with starter code or submitted code if completed
   useEffect(() => {
     if (currentChallenge) {
       const isCompleted = state.completed.includes(currentChallenge.id);
+      const isNewChallenge = lastChallengeIdRef.current !== currentChallenge.id;
 
-      // If completed, load submitted code and set Review Mode
-      if (isCompleted) {
-        // Replace literal \\r\\n sequences with actual newlines
-        const savedCode = state.submittedCodes[currentChallenge.id];
-        const starter = currentChallenge.starterCode.replace(/\\r\\n/g, "\n");
+      if (isNewChallenge) {
+        lastChallengeIdRef.current = currentChallenge.id;
+        // If it's a new challenge, we shouldn't assume it's being retried unless complex nav logic.
+        // Usually safe to clear or ignore retry state for *other* challenges,
+        // but for *this* challenge ID, if we just navigated to it, we probably aren't retrying it yet.
+        // However, if we preserve retry state across navigation, we wouldn't delete.
+        // For now, let's just use the set check.
 
-        setState((prev) => ({
-          ...prev,
-          code: savedCode ? savedCode.replace(/\\r\\n/g, "\n") : starter,
-          isReviewMode: true, // Auto-lock
-          diagnostics: [],
-        }));
+        if (isCompleted) {
+          const savedCode = state.submittedCodes[currentChallenge.id];
+          const starter = currentChallenge.starterCode.replace(/\\r\\n/g, "\n");
+          setState((prev) => ({
+            ...prev,
+            code: savedCode ? savedCode.replace(/\\r\\n/g, "\n") : starter,
+            isReviewMode: true,
+            diagnostics: [],
+            // Don't necessarily reset start time here if we want to track review time?
+            // actually review time is separate.
+          }));
+        } else {
+          const cleanedCode = currentChallenge.starterCode.replace(
+            /\\r\\n/g,
+            "\n",
+          );
+          setState((prev) => ({
+            ...prev,
+            code: cleanedCode,
+            isReviewMode: false,
+            diagnostics: [],
+            startTime: Date.now(),
+          }));
+        }
       } else {
-        // Not completed: Load starter code
-        // Replace literal \\r\\n sequences with actual newlines
-        const cleanedCode = currentChallenge.starterCode.replace(
-          /\\r\\n/g,
-          "\n",
-        );
-        setState((prev) => ({
-          ...prev,
-          code: cleanedCode,
-          isReviewMode: false,
-          diagnostics: [],
-        }));
+        // Challenge ID is the same, but maybe completion status changed (e.g. data loaded)
+        // Only update if we need to switch to review mode AND we are not currently retrying
+        const isRetrying = activeRetriesRef.current.has(currentChallenge.id);
+
+        if (isCompleted && !state.isReviewMode && !isRetrying) {
+          const savedCode = state.submittedCodes[currentChallenge.id];
+          const starter = currentChallenge.starterCode.replace(/\\r\\n/g, "\n");
+          setState((prev) => ({
+            ...prev,
+            code: savedCode ? savedCode.replace(/\\r\\n/g, "\n") : starter,
+            isReviewMode: true,
+            diagnostics: [],
+          }));
+        }
+        // If not completed and already in edit mode, DO NOT reset code or timer
       }
     }
   }, [currentChallenge, state.completed, state.submittedCodes]);
+
+  // Derived Review Time
+  const reviewTime = useMemo(() => {
+    if (state.isReviewMode && currentChallenge) {
+      return state.executionTimes[currentChallenge.id] || 0;
+    }
+    return null;
+  }, [state.isReviewMode, currentChallenge, state.executionTimes]);
 
   // Calculate progress
   useEffect(() => {
@@ -598,7 +659,8 @@ export const ChallengeProvider = ({
 
       // 2. Check for Option 1: C to F
       // Formula: * 9 / 5  OR  * 1.8
-      const hasCtoF = /(\*\s*9\s*\/\s*5)|(\*\s*1\.8)/.test(clean);
+      // Updated: Allow 9.0 and 5.0
+      const hasCtoF = /(\*\s*9(\.0)?\s*\/\s*5(\.0)?)|(\*\s*1\.8)/.test(clean);
       if (!hasCtoF) {
         return {
           correct: false,
@@ -611,7 +673,8 @@ export const ChallengeProvider = ({
 
       // 3. Check for Option 2: F to C
       // Formula: * 5 / 9  OR  / 1.8
-      const hasFtoC = /(\*\s*5\s*\/\s*9)|(\/\s*1\.8)/.test(clean);
+      // Updated: Allow 5.0 and 9.0
+      const hasFtoC = /(\*\s*5(\.0)?\s*\/\s*9(\.0)?)|(\/\s*1\.8)/.test(clean);
       if (!hasFtoC) {
         return {
           correct: false,
@@ -920,6 +983,7 @@ export const ChallengeProvider = ({
     const result = await verifySolution();
 
     if (!result.correct) {
+      playSound("wrong"); // Play wrong sound
       setState((prev) => ({
         ...prev,
         showTerminal: true, // Ensure terminal is open
@@ -929,6 +993,7 @@ export const ChallengeProvider = ({
     }
 
     // Success! output feedback
+    playSound("correct"); // Play correct sound
     setState((prev) => ({
       ...prev,
       output:
@@ -939,6 +1004,10 @@ export const ChallengeProvider = ({
     }));
 
     const isFirstTime = !state.completed.includes(currentChallenge.id);
+    if (isFirstTime) {
+      playSound("claim"); // Play celebration sound on first completion
+    }
+
     const previousStars = state.stars[currentChallenge.id] || 0;
     const starsDelta = Math.max(0, result.stars - previousStars);
     const improvedScore = result.stars > previousStars;
@@ -964,17 +1033,53 @@ export const ChallengeProvider = ({
         ...prev.stars,
         [currentChallenge.id]: Math.max(previousStars, result.stars),
       },
+      // [NEW] Update execution time for this challenge
+      executionTimes: {
+        ...prev.executionTimes,
+        [currentChallenge.id]: result.executionTimeMs,
+      },
       exp: levelUp ? 0 : newExp,
       level: levelUp ? prev.level + 1 : prev.level,
       levelThreshold: levelUp ? prev.levelThreshold + 20 : prev.levelThreshold,
       coins: prev.coins + coinsEarned,
       showHint: false,
       showSuccessModal: true,
-      lastEarnedStars: result.stars, // [NEW] Update last earned
+      lastEarnedStars: result.stars,
+      isReviewMode: true, // [NEW] Stop timer by entering review mode (or just freezing it)
     }));
 
     // 2. Persist to DB
     if (user) {
+      // --- Streak Logic for Machine Problems ---
+      const streakResult = calculateStreakUpdate(user);
+      if (streakResult.shouldUpdate) {
+        console.log("[MachineProblem] Updating Streak:", streakResult);
+
+        // Update Local User Context
+        syncUser({
+          ...user,
+          streaks: streakResult.newStreak,
+          activeDates: streakResult.newActiveDates,
+          streakFreezes: streakResult.newFreezes,
+          frozenDates: streakResult.newFrozenDates,
+          coins: streakResult.newCoins, // In case streak reward gave coins
+        });
+
+        // Update DB (Parallel with challenge save)
+        await supabase
+          .from("users")
+          .update({
+            streaks: streakResult.newStreak,
+            active_dates: streakResult.newActiveDates,
+            streak_freezes: streakResult.newFreezes,
+            frozen_dates: streakResult.newFrozenDates,
+            coins: streakResult.newCoins,
+          })
+          .eq("id", user.uid);
+
+        toast.success("🔥 Streak Updated!");
+      }
+
       console.log(
         "[HandleComplete] Saving progress for user:",
         user.uid,
@@ -983,15 +1088,13 @@ export const ChallengeProvider = ({
       );
 
       // Update User Stars if we earned more
-      // Update User Stars if we earned more
       // Note: We now handle this inside saveChallengeProgress to ensure atomic updates with other stats.
       // The separate update logic has been removed here.
 
-      // Save Challenge Progress (Skip update if score not improved and not first time)
-      // Actually, if we get same stars, maybe we update 'last executed'?
-      // But user requested "restriction... only claim 3 stars".
-      // We'll update progress if it's an improvement or first time.
-      const shouldUpdateProgress = isFirstTime || improvedScore;
+      // Save Challenge Progress (Always update on submit to capture latest code/runtime/score)
+      // The user requested that retry overwrites the runtime and code.
+      // We still rely on starsDelta to ensure we don't double-award global stars.
+      const shouldUpdateProgress = true;
 
       saveChallengeProgress(
         user.uid,
@@ -1128,6 +1231,8 @@ export const ChallengeProvider = ({
         setCurrentChallengeIndex, // Provide this to the context
         setIsMobileEditMode: setIsMobileEditMode, // [FIX]
         handleRetry, // [NEW]
+        reviewTime, // [NEW]
+        isExiting, // [NEW] Flag to bypass blocker
       }}
     >
       {children}

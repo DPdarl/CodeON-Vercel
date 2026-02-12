@@ -1,5 +1,12 @@
 // app/components/dashboardmodule/SideBar.tsx
-import { MoreHorizontal, Settings, LogOut, Info, UserCog } from "lucide-react";
+import {
+  MoreHorizontal,
+  Settings,
+  LogOut,
+  Info,
+  UserCog,
+  Bug,
+} from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import {
   Dialog,
@@ -107,6 +114,12 @@ export function Sidebar({
       icon: ReportIcon,
       roles: STAFF_ROLES,
     },
+    {
+      id: "bug-reports",
+      label: "Bugs",
+      icon: Bug,
+      roles: STAFF_ROLES,
+    },
 
     // ✅ REMOVED: Profile Tab from here
     // { id: "profile", label: "Profile", icon: ProfileIcon, roles: ALL_ROLES },
@@ -194,9 +207,16 @@ export function Sidebar({
                   transition={{ duration: 0.3, ease: "easeInOut" }}
                   className="flex flex-col overflow-hidden whitespace-nowrap"
                 >
-                  <h1 className="text-xl font-bold leading-tight font-pixelify dark:text-white truncate">
-                    CodeON
-                  </h1>
+                  <img
+                    src="/assets/icons/CodeONTextLogo.png"
+                    alt="CodeON"
+                    className="h-6 w-auto dark:hidden block"
+                  />
+                  <img
+                    src="/assets/icons/CodeONTextLogoDark.png"
+                    alt="CodeON"
+                    className="h-6 w-auto hidden dark:block"
+                  />
                   <span className="text-xs text-muted-foreground leading-tight capitalize truncate">
                     {userRole} View
                   </span>

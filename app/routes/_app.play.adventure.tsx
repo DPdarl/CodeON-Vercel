@@ -20,7 +20,8 @@ import {
   Medal,
   Star,
   ArrowRight,
-  Gift, // New Icon
+  Gift,
+  Bug,
 } from "lucide-react";
 import { cn } from "~/lib/utils";
 import { Button } from "~/components/ui/button";
@@ -67,6 +68,7 @@ import { AdventureSkeleton } from "~/components/dashboardmodule/AdventureSkeleto
 import { CHAPTER_VISUALS, CSHARP_LESSONS } from "~/data/adventureContent";
 import { trackQuestEvent } from "~/lib/quest-tracker";
 import { useGameSound } from "~/hooks/useGameSound";
+import { BugReportModal } from "~/components/playmodule/challenge/BugReportModal";
 import { calculateStreakUpdate } from "~/lib/streak-logic";
 
 const NODE_HEIGHT = 160;
@@ -518,6 +520,7 @@ function FullScreenLesson({
 
   const currentActivity = lessonQueue[currentActivityIndex];
   const activityRef = useRef<ActivityHandle>(null);
+  const [isBugReportOpen, setIsBugReportOpen] = useState(false);
 
   const handleActivitySubmit = async (success: boolean) => {
     if (feedbackStatus !== "idle") return;
@@ -599,6 +602,12 @@ function FullScreenLesson({
         onConfirm={confirmExit}
       />
 
+      <BugReportModal
+        isOpen={isBugReportOpen}
+        onClose={() => setIsBugReportOpen(false)}
+        challengeId={chapter?.id}
+      />
+
       {/* HEADER */}
       <div className="pt-6 pb-2 px-4 sm:px-6 w-full max-w-5xl mx-auto flex flex-col gap-3">
         <div className="flex items-center gap-4 w-full">
@@ -609,6 +618,16 @@ function FullScreenLesson({
             className="shrink-0 text-muted-foreground hover:text-foreground"
           >
             <X className="w-6 h-6" />
+          </Button>
+
+          <Button
+            variant="ghost"
+            onClick={() => setIsBugReportOpen(true)}
+            size="icon"
+            className="shrink-0 text-muted-foreground hover:text-foreground"
+            title="Report a bug"
+          >
+            <Bug className="w-6 h-6" />
           </Button>
 
           {step === "game" && !isFinished ? (
@@ -1491,6 +1510,8 @@ export default function AdventurePage() {
 
   if (loading) return <AdventureSkeleton />;
 
+  const [isBugReportOpen, setIsBugReportOpen] = useState(false);
+
   return (
     <div className="min-h-screen bg-background p-6">
       {/* 2. Regress Confirm */}
@@ -1498,6 +1519,10 @@ export default function AdventurePage() {
         open={showRegressConfirm}
         onClose={() => setShowRegressConfirm(false)}
         onConfirm={handleRegress}
+      />
+      <BugReportModal
+        isOpen={isBugReportOpen}
+        onClose={() => setIsBugReportOpen(false)}
       />
       {/* 3. Grand Prize Celebration */}
       <AdventureCompletedCelebration
@@ -1575,6 +1600,16 @@ export default function AdventurePage() {
                 </div>
 
                 <div className="flex gap-2 w-full md:w-auto justify-end">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="rounded-full w-10 h-10 border-indigo-200 bg-indigo-50 dark:bg-indigo-900/20 dark:border-indigo-800"
+                    onClick={() => setIsBugReportOpen(true)}
+                    title="Report a bug"
+                  >
+                    <Bug className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                  </Button>
+
                   <TooltipProvider>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>

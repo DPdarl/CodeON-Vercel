@@ -5,6 +5,7 @@ import {
   LogOut,
   Info,
   UserCog,
+  Bug, // [NEW]
   // Menu, // Unused import removed
 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
@@ -95,6 +96,12 @@ export function MobileNavBar({
       id: "user-reports",
       label: "Reports",
       icon: ReportIcon,
+      roles: STAFF_ROLES,
+    },
+    {
+      id: "bug-reports", // [NEW]
+      label: "Bugs",
+      icon: Bug,
       roles: STAFF_ROLES,
     },
 

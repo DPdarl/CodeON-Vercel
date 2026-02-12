@@ -11,15 +11,18 @@ import { Play, Lock, PenLine, Undo2, Redo2, Eraser } from "lucide-react";
 import { lintCode } from "~/utils/linter";
 import { toast } from "sonner";
 import { useThemeDetector } from "~/hooks/useThemeDetector";
+import { useAuth } from "~/contexts/AuthContext";
 
 interface CodeEditorProps {
   className?: string;
   disableCopyPaste?: boolean;
+  onEditorReady?: (editor: any) => void;
 }
 
 const CodeEditor = ({
   className,
   disableCopyPaste = false,
+  onEditorReady,
 }: CodeEditorProps) => {
   const {
     code,
@@ -31,7 +34,10 @@ const CodeEditor = ({
     setIsMobileEditMode, // [NEW]
     isReviewMode, // [NEW]
   } = useChallengeContext();
+
+  // ... (Anti-Cheat & State logic remains same)
   const isDark = useThemeDetector();
+  const { user } = useAuth(); // [NEW]
 
   // Use state instead of refs to trigger effects when editor is ready
   const [editorInstance, setEditorInstance] = React.useState<any>(null);
@@ -54,14 +60,31 @@ const CodeEditor = ({
     setMonacoInstance(monaco);
     setupCSharp(editor, monaco);
 
+    // Pass instance up
+    if (onEditorReady) {
+      onEditorReady(editor);
+    }
+
     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => {
       handleRun();
     });
   };
 
-  // Anti-Cheat: Disable Copy/Paste/Context Menu
+  // ... (Anti-Cheat Effect)
   React.useEffect(() => {
-    if (!disableCopyPaste || !editorInstance || !monacoInstance) return;
+    // [NEW] Allow Copy/Paste for Admins, Instructors, Superadmins
+    const canBypass =
+      user?.role === "admin" ||
+      user?.role === "superadmin" ||
+      user?.role === "instructor";
+
+    if (
+      !disableCopyPaste ||
+      !editorInstance ||
+      !monacoInstance ||
+      canBypass // [NEW] Skip if admin
+    )
+      return;
 
     const editor = editorInstance;
     const monaco = monacoInstance;
@@ -97,17 +120,15 @@ const CodeEditor = ({
       domNode.addEventListener("paste", preventer, true);
       domNode.addEventListener("copy", preventer, true);
       domNode.addEventListener("cut", preventer, true);
-      // domNode.addEventListener("contextmenu", preventer, true); // Allowed for mobile selection
 
-      // Cleanup not strictly necessary for "always on" but good practice
       return () => {
         domNode.removeEventListener("paste", preventer, true);
         domNode.removeEventListener("copy", preventer, true);
         domNode.removeEventListener("cut", preventer, true);
-        // domNode.removeEventListener("contextmenu", preventer, true);
       };
     }
-  }, [disableCopyPaste, editorInstance, monacoInstance]);
+  }, [disableCopyPaste, editorInstance, monacoInstance, user?.role]);
+  // Added user?.role to dependency array to fix potential stale closure if user loads late, though usually user is loaded.
 
   const handleBeforeMount: BeforeMount = (monaco) => {
     defineTheme(monaco);
@@ -192,56 +213,7 @@ const CodeEditor = ({
           <span className="text-xs text-gray-500">
             C# {currentChallenge?.requiredVersion || "8.0"}
           </span>
-
-          {/* Mobile Actions: Undo, Redo, Clear Comments (Only show in Edit Mode) */}
-          {isMobile && isMobileEditMode && (
-            <div className="flex items-center gap-1">
-              <button
-                onClick={() => {
-                  editorInstance?.trigger("keyboard", "undo", null);
-                  editorInstance?.focus();
-                }}
-                className="p-1.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors"
-                title="Undo"
-              >
-                <Undo2 size={16} />
-              </button>
-              <button
-                onClick={() => {
-                  editorInstance?.trigger("keyboard", "redo", null);
-                  editorInstance?.focus();
-                }}
-                className="p-1.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors"
-                title="Redo"
-              >
-                <Redo2 size={16} />
-              </button>
-              <button
-                onClick={() => {
-                  if (
-                    confirm(
-                      "Are you sure you want to clear all comments? This cannot be easily undone outside of 'Undo'.",
-                    )
-                  ) {
-                    const currentVal = editorInstance?.getValue() || "";
-                    // Regex to remove single line comments //... and multi line /* ... */
-                    const noComments = currentVal
-                      .replace(/\/\/.*$/gm, "")
-                      .replace(/\/\*[\s\S]*?\*\//g, "");
-                    // Append 20 blank lines just in case
-                    const withLines = noComments.trimEnd() + "\n".repeat(20);
-
-                    editorInstance?.setValue(withLines);
-                    toast.success("Comments cleared!");
-                  }
-                }}
-                className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/30 rounded transition-colors"
-                title="Clear Comments"
-              >
-                <Eraser size={16} />
-              </button>
-            </div>
-          )}
+          {/* Actions removed from here */}
         </div>
       </div>
 

@@ -66,6 +66,7 @@ export default function AppLayout() {
       return "instructor-management";
     if (currentPath.startsWith("/admin-management")) return "admin-management";
     if (currentPath.startsWith("/user-reports")) return "user-reports";
+    if (currentPath.startsWith("/bug-reports")) return "bug-reports"; // [NEW]
 
     return "home";
   };
@@ -115,6 +116,9 @@ export default function AppLayout() {
         break;
       case "user-reports":
         navigate("/user-reports");
+        break;
+      case "bug-reports": // [NEW]
+        navigate("/bug-reports");
         break;
       default:
         navigate("/dashboard");

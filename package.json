@@ -41,6 +41,7 @@
     "canvas-confetti": "^1.9.4",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.0",
+    "date-fns": "^3.6.0",
     "embla-carousel-react": "^8.6.0",
     "framer-motion": "^12.23.24",
     "isbot": "^5.1.29",
@@ -59,6 +60,7 @@
   "devDependencies": {
     "@remix-run/dev": "2.16.7",
     "@svgr/webpack": "^8.1.0",
+    "@types/date-fns": "^2.5.3",
     "@types/react": "^18.3.26",
     "@types/react-dom": "^18.3.7",
     "@typescript-eslint/eslint-plugin": "^6.7.4",

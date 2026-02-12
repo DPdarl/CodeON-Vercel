@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import { toast } from "sonner";
+import { ConfirmationModal } from "./ConfirmationModal";
 
 interface ChallengeFooterProps {
   onRun?: () => void;
@@ -37,6 +38,8 @@ const ChallengeFooter = ({ onRun, onSubmit }: ChallengeFooterProps) => {
     setIsMobileEditMode, // [NEW] Needed for toggle
   } = useChallengeContext();
 
+  const [isRetryModalOpen, setIsRetryModalOpen] = React.useState(false); // [NEW]
+
   const isFirst = currentChallengeIndex === 0;
   const isLast = currentChallengeIndex === challenges.length - 1;
 
@@ -58,7 +61,7 @@ const ChallengeFooter = ({ onRun, onSubmit }: ChallengeFooterProps) => {
       <div className="flex items-center gap-3">
         {isReviewMode ? (
           <Button
-            onClick={handleRetry}
+            onClick={() => setIsRetryModalOpen(true)}
             className="bg-yellow-500 hover:bg-yellow-600 text-white font-bold min-w-[140px] shadow-sm animate-pulse"
           >
             Retry Challenge
@@ -129,6 +132,19 @@ const ChallengeFooter = ({ onRun, onSubmit }: ChallengeFooterProps) => {
       <div className="flex items-center gap-2 md:gap-3">
         {/* Removed Back/Next buttons as requested */}
       </div>
+
+      <ConfirmationModal
+        isOpen={isRetryModalOpen}
+        title="Retry Challenge?"
+        description="Are you sure you want to retry? Your previous code and runtime will be reset."
+        confirmText="Retry"
+        variant="warning"
+        onConfirm={() => {
+          handleRetry();
+          setIsRetryModalOpen(false);
+        }}
+        onCancel={() => setIsRetryModalOpen(false)}
+      />
     </footer>
   );
 };

@@ -1,103 +1,133 @@
-import { createClient } from "@supabase/supabase-js";
-
-// Initialize standard client (assuming env vars are available,
-// or simpler: pass the client/request context if using auth-helper.
-// For now, I'll use a standard construction pattern or expect the loader to pass the client).
-// Actually, in Remix with Supabase, we usually get the client from the loader args (request).
-// But for a service function, it's cleaner to accept the client as an argument.
+import { supabase } from "~/lib/supabase";
+import { Challenge } from "~/types/challenge.types";
 
 export const saveChallengeProgress = async (
-  supabase: any,
   userId: string,
-  challengeId: string,
+  challenge: Challenge,
   results: {
     stars: number;
     code: string;
     executionTime: number;
     xpEarned: number;
     coinsEarned: number;
+    starsToAdd?: number; // New field for delta update
+  },
+  options?: {
+    skipProgressUpdate?: boolean;
   },
 ) => {
-  // 1. Upsert Challenge Progress
-  const now = new Date().toISOString();
+  try {
+    // 0. Ensure Challenge Exists in DB (Fixes FK Error)
+    // ... (Keep existing logic if needed, but for brevity I assume we just wrap the body)
+    // Actually, I'll just keeping the upsert challenge definition as it's safe.
 
-  const { error: progressError } = await supabase
-    .from("user_challenge_progress")
-    .upsert(
+    // Capture timestamp once to ensure consistency
+    const now = new Date().toISOString();
+
+    const { error: challengeError } = await supabase.from("challenges").upsert(
       {
-        user_id: userId,
-        challenge_id: challengeId,
-        status: "completed",
-        stars: results.stars,
-        code_submitted: results.code,
-        execution_time_ms: results.executionTime,
-        executed_at: now,
+        id: challenge.id,
+        title: challenge.title,
+        description: challenge.description,
+        page: challenge.page,
       },
-      { onConflict: "user_id, challenge_id" },
+      { onConflict: "id" },
     );
 
-  if (progressError) {
-    console.error("Error saving progress:", progressError);
-    throw progressError;
-  }
+    if (challengeError) {
+      console.warn("Error upserting challenge definition:", challengeError);
+    }
 
-  // 2. Insert Match History (as requested)
-  // Mode: 'challenge', Winner: 'User' (Single player), Results: JSON
-  const { error: historyError } = await supabase.from("match_history").insert({
-    user_id: userId, // Ensure player can see this history
-    mode: "challenge",
-    winner_name: "You", // Or fetch user name? "You" is fine for single view, or leave null.
-    participants_count: 1,
-    results: {
-      challengeId,
-      stars: results.stars,
-      xp: results.xpEarned,
-      coins: results.coinsEarned,
-    },
-    played_at: now,
-  });
+    // 1. Upsert Challenge Progress (Only if not skipped)
+    if (!options?.skipProgressUpdate) {
+      const { error: progressError } = await supabase
+        .from("user_challenge_progress")
+        .upsert(
+          {
+            user_id: userId,
+            challenge_id: challenge.id,
+            status: "completed",
+            stars: results.stars,
+            code_submitted: results.code,
+            execution_time_ms: results.executionTime,
+            executed_at: now,
+          },
+          { onConflict: "user_id, challenge_id" },
+        );
 
-  if (historyError) console.error("Error saving history:", historyError);
+      if (progressError) throw progressError;
+    }
 
-  // 3. Update User Stats (RPC is safer, but direct update for MVP)
-  // We need to fetch current stats first to increment, OR use an RPC 'increment_stats'.
-  // Let's try to fetch and update.
-  const { data: userData, error: userFetchError } = await supabase
-    .from("users")
-    .select("xp, coins, level, levelThreshold") // Assuming standard RPG columns
-    .eq("id", userId)
-    .single();
+    // 2. Insert Match History
+    const { error: historyError } = await supabase
+      .from("match_history")
+      .insert({
+        user_id: userId, // Link to the user
+        mode: `Challenge: Machine Problem ${challenge.id} : ${challenge.title}`,
+        winner_name: "You",
+        participants_count: 1,
+        results: {
+          challengeId: challenge.id,
+          stars: results.stars,
+          xp: results.xpEarned,
+          coins: results.coinsEarned,
+        },
+        played_at: now,
+      });
 
-  if (!userFetchError && userData) {
-    const newXp = (userData.xp || 0) + results.xpEarned;
-    const newCoins = (userData.coins || 0) + results.coinsEarned;
-    // Simple level logic (can be moved to a util)
-    // If we want to duplicate the client logic (20 xp threshold? dynamic?)
-    // Use the client logic: if (newXp >= userData.levelThreshold) ...
-    // For now, let's just increment XP and Coins, and let client/another service handle leveling if complex.
-    // Or just save what we calculated.
+    if (historyError) throw historyError;
 
-    await supabase
+    // 3. Update User Stats (Optimistic / Direct Update)
+    // Fetch current user stats first to ensure accuracy
+    const { data: userData } = await supabase
       .from("users")
-      .update({
+      .select("xp, coins, completed_machineproblems, stars")
+      .eq("id", userId)
+      .single();
+
+    if (userData) {
+      const newXp = (userData.xp || 0) + results.xpEarned;
+      const newCoins = (userData.coins || 0) + results.coinsEarned;
+      const newStars = (userData.stars || 0) + (results.starsToAdd || 0);
+
+      // Update completed_machineproblems
+      const currentCompleted = userData.completed_machineproblems || [];
+      const updatedCompleted = currentCompleted.includes(challenge.id)
+        ? currentCompleted
+        : [...currentCompleted, challenge.id];
+
+      // Assuming we might want to update stars in the users table too if that's the total stars logic
+      // But the context update seems to handle fetching stars separately.
+      // However, if we want to ensure atomic update of everything:
+
+      const updates: any = {
         xp: newXp,
         coins: newCoins,
-      })
-      .eq("id", userId);
-  }
+        completed_machineproblems: updatedCompleted,
+        stars: newStars,
+      };
 
-  return { success: true };
+      const { error: statsError } = await supabase
+        .from("users")
+        .update(updates)
+        .eq("id", userId);
+
+      if (statsError) throw statsError;
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error("Error saving challenge progress:", error);
+    return { success: false, error };
+  }
 };
 
-export const getUserChallengeProgress = async (
-  supabase: any,
-  userId: string,
-) => {
+export const fetchUserProgress = async (userId: string) => {
   const { data, error } = await supabase
     .from("user_challenge_progress")
-    .select("challenge_id, status, stars")
-    .eq("user_id", userId);
+    .select("challenge_id, stars, code_submitted, execution_time_ms"); // [NEW] Fetch time
 
-  if (error) return [];
+  if (error || !data) return [];
+  // Return array of { challenge_id, stars, code_submitted, execution_time_ms }
   return data;
 };

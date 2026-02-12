@@ -10,7 +10,11 @@ import {
   FileCode,
   Terminal as TerminalIcon,
   Layout,
+  Undo2,
+  Redo2,
+  Eraser,
 } from "lucide-react";
+import { toast } from "sonner"; // Add toast import
 
 import {
   ChallengeProvider,
@@ -28,6 +32,7 @@ import { Button } from "~/components/ui/button";
 import { Skeleton } from "~/components/ui/skeleton";
 import { useBlocker } from "@remix-run/react";
 import { ExitConfirmationModal } from "~/components/playmodule/challenge/ExitConfirmationModal";
+import { ConfirmationModal } from "~/components/playmodule/challenge/ConfirmationModal";
 
 // ... (imports)
 
@@ -119,7 +124,10 @@ const MachineProblemContent = () => {
     challenges,
     isLoading,
     lastEarnedStars,
-    handleRun, // Destructure handleRun
+    handleRetry, // Destructure handleRetry
+    isExiting, // [NEW]
+    handleRun, // [RESTORED]
+    isReviewMode, // [RESTORED]
   } = useChallengeContext();
   const { user } = useAuth(); // Get user
   const navigate = useNavigate();
@@ -127,7 +135,7 @@ const MachineProblemContent = () => {
   // Navigation Blocker
   const blocker = useBlocker(
     ({ currentLocation, nextLocation }) =>
-      currentLocation.pathname !== nextLocation.pathname,
+      !isExiting && currentLocation.pathname !== nextLocation.pathname,
   );
 
   const isLastChallenge = currentChallenge
@@ -187,6 +195,10 @@ const MachineProblemContent = () => {
       }
     }
   }, [currentChallenge, completed, navigate, isLoading]);
+  // Editor Instance State for Toolbar
+  const [editorInstance, setEditorInstance] = useState<any>(null);
+  const [isClearCommentsModalOpen, setIsClearCommentsModalOpen] =
+    useState(false); // [NEW]
 
   if (isLoading) return <MachineProblemSkeleton />;
 
@@ -255,14 +267,47 @@ const MachineProblemContent = () => {
           }`}
         >
           {/* File Tabs - Keeping Darker for Editor Context */}
-          <div className="h-10 bg-[#1e1e1e] border-b border-[#333] flex items-center px-2 gap-1">
-            <div className="h-8 px-3 bg-[#1e1e1e] border-t-2 border-primary text-gray-200 text-xs flex items-center gap-2 rounded-t-sm">
-              <div className="w-3 h-3 bg-primary/20 text-primary rounded flex items-center justify-center font-bold">
-                C#
+          <div className="h-10 bg-[#1e1e1e] border-b border-[#333] flex items-center justify-between px-2 gap-1">
+            <div className="flex items-center gap-1">
+              <div className="h-8 px-3 bg-[#1e1e1e] border-t-2 border-primary text-gray-200 text-xs flex items-center gap-2 rounded-t-sm">
+                <div className="w-3 h-3 bg-primary/20 text-primary rounded flex items-center justify-center font-bold">
+                  C#
+                </div>
+                Program.cs
               </div>
-              Program.cs
             </div>
-            {/* Spacer / Add File Button could go here */}
+            {/* Actions: Undo, Redo, Clear Comments (Hidden in Review Mode) */}
+            {!isReviewMode && editorInstance && (
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => {
+                    editorInstance?.trigger("keyboard", "undo", null);
+                    editorInstance?.focus();
+                  }}
+                  className="p-1.5 text-gray-400 hover:text-gray-200 hover:bg-gray-700/50 rounded transition-colors"
+                  title="Undo"
+                >
+                  <Undo2 size={15} />
+                </button>
+                <button
+                  onClick={() => {
+                    editorInstance?.trigger("keyboard", "redo", null);
+                    editorInstance?.focus();
+                  }}
+                  className="p-1.5 text-gray-400 hover:text-gray-200 hover:bg-gray-700/50 rounded transition-colors"
+                  title="Redo"
+                >
+                  <Redo2 size={15} />
+                </button>
+                <button
+                  onClick={() => setIsClearCommentsModalOpen(true)}
+                  className="p-1.5 text-red-400 hover:text-red-300 hover:bg-red-900/30 rounded transition-colors"
+                  title="Clear Comments"
+                >
+                  <Eraser size={15} />
+                </button>
+              </div>
+            )}
           </div>
 
           <div className="flex-1 relative overflow-hidden min-h-0">
@@ -271,6 +316,7 @@ const MachineProblemContent = () => {
                 <CodeEditor
                   className="h-full border-0 rounded-none shadow-none"
                   disableCopyPaste={user?.role === "user"}
+                  onEditorReady={setEditorInstance}
                 />
               )}
             </ClientOnly>
@@ -312,6 +358,27 @@ const MachineProblemContent = () => {
         isOpen={blocker.state === "blocked"}
         onConfirm={() => blocker.state === "blocked" && blocker.proceed()}
         onCancel={() => blocker.state === "blocked" && blocker.reset()}
+      />
+
+      {/* Clear Comments Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={isClearCommentsModalOpen}
+        title="Clear All Comments?"
+        description="Are you sure you want to clear all comments? This is a guide to help you."
+        confirmText="Clear Comments"
+        variant="danger"
+        onConfirm={() => {
+          const currentVal = editorInstance?.getValue() || "";
+          const noComments = currentVal
+            .replace(/\/\/.*$/gm, "")
+            .replace(/\/\*[\s\S]*?\*\//g, "");
+          const withLines = noComments.trimEnd() + "\n".repeat(20);
+
+          editorInstance?.setValue(withLines);
+          toast.success("Comments cleared!");
+          setIsClearCommentsModalOpen(false);
+        }}
+        onCancel={() => setIsClearCommentsModalOpen(false)}
       />
 
       {/* Success Modal Overlay */}

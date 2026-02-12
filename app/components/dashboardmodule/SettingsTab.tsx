@@ -11,9 +11,10 @@ import { Label } from "~/components/ui/label";
 import { Switch } from "~/components/ui/switch";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
-import { Moon, Sun, Monitor, Eye, Zap, Lock, Loader2 } from "lucide-react";
+import { Moon, Sun, Monitor, Eye, Zap, Lock, Loader2, Bug } from "lucide-react";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
+import { BugReportModal } from "../playmodule/challenge/BugReportModal";
 
 export function SettingsTab() {
   const { user, updateProfile, updatePassword } = useAuth();
@@ -29,6 +30,7 @@ export function SettingsTab() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isUpdatingPass, setIsUpdatingPass] = useState(false);
+  const [isBugReportOpen, setIsBugReportOpen] = useState(false);
 
   useEffect(() => {
     if (user?.settings) {
@@ -187,6 +189,35 @@ export function SettingsTab() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Support Card */}
+      <Card className="bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Bug className="w-5 h-5" />
+            Support
+          </CardTitle>
+          <CardDescription>Found an issue? Let us know.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label className="text-base">Report a Bug</Label>
+              <p className="text-sm text-muted-foreground">
+                Help us improve CodeON by reporting bugs.
+              </p>
+            </div>
+            <Button variant="outline" onClick={() => setIsBugReportOpen(true)}>
+              <Bug className="mr-2 h-4 w-4" /> Report Issue
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <BugReportModal
+        isOpen={isBugReportOpen}
+        onClose={() => setIsBugReportOpen(false)}
+      />
 
       {/* NEW: Change Password Card */}
       <Card className="bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 border-t-4 border-t-red-500">

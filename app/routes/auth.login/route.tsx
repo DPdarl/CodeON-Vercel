@@ -124,9 +124,11 @@ export default function Login() {
               <CoinIcon className="h-24 w-24" />
             </div>
           </div>
-          <h1 className="text-5xl font-extrabold text-white tracking-tight font-pixelify">
-            CodeON
-          </h1>
+          <img
+            src="/assets/icons/CodeONTextLogoDark.png"
+            alt="CodeON"
+            className="h-16 mx-auto"
+          />
           <p className="text-lg text-gray-300">
             Enter the battlefield. Master the code. Claim your victory.
           </p>
