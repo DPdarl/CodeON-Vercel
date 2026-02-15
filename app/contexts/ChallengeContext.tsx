@@ -686,6 +686,87 @@ export const ChallengeProvider = ({
       }
     }
 
+    // --- Challenge 1.3 Specific Checks (Peso-Dollar Conversion) ---
+    if (currentChallenge.id === "1.3") {
+      const clean = cleanCode;
+
+      // 1. Check for Constants (Always required)
+      const hasRate1 = /0\.018/.test(clean);
+      const hasRate2 = /56(\.0)?/.test(clean);
+
+      if (!hasRate1 || !hasRate2) {
+        return {
+          correct: false,
+          stars: 0,
+          feedback:
+            "Missing Exchange Rates: Make sure you defined the constants (0.018 and 56.0).",
+          executionTimeMs: 0,
+        };
+      }
+
+      // 2. Identify Approach
+      const hasSwitch = /\bswitch\b/.test(clean);
+      const hasIfElse = /\bif\b/.test(clean) && /\belse\b/.test(clean);
+
+      if (!hasSwitch && !hasIfElse) {
+        return {
+          correct: false,
+          stars: 0,
+          feedback:
+            "Missing Logic: You need to implement EITHER a 'switch' statement OR 'if/else' statements.",
+          executionTimeMs: 0,
+        };
+      }
+
+      // 3. Validation based on selection
+      if (hasSwitch) {
+        // Enforce Placeholders for Switch approach
+        if (!/\{0\}/.test(code) || !/\{1(:F2)?\}/.test(code)) {
+          return {
+            correct: false,
+            stars: 0,
+            feedback:
+              "Missing Placeholders: The Switch approach requires using placeholders like {0} and {1:F2}.",
+            executionTimeMs: 0,
+          };
+        }
+      }
+
+      if (hasIfElse) {
+        // Enforce Math.Round for If/Else approach
+        if (!/Math\.Round/.test(clean)) {
+          return {
+            correct: false,
+            stars: 0,
+            feedback:
+              "Missing Math.Round: The If/Else approach requires using Math.Round(value, 2).",
+            executionTimeMs: 0,
+          };
+        }
+      }
+
+      // If both are present, that's fine too.
+      // Dynamic Runtime Verification is handled below by injecting a custom runner if needed?
+      // Actually, since we removed the runner from 1.3 in challenges.ts, verifySolution will skip strict comparison
+      // UNLESS we implement it here.
+
+      // We NEED to verify the output matches expected.
+      // Let's generate EXPECTED output based on the input and the code's approach.
+      // Since `verifySolution` iterates `inputs`, we can do it inside the loop below.
+      // But `verifySolution` structure relies on `currentChallenge.runner`.
+      // We can temporarily attach a runner? No.
+      // We can replicate the runner logic here?
+      // Or we can just let `currentChallenge.runner` remain NULL (as updated) and rely on manual check?
+      // `verifySolution` logic:
+      // if (currentChallenge.runner) { ... expectedOutput = ... }
+      // ...
+      // if (!normUser.includes(normExpected)) ...
+
+      // If `expectedOutput` is empty (because no runner), `normExpected` is empty.
+      // `if (!normExpected)` -> returns "Configuration Error".
+      // So we MUST generate expected output.
+    }
+
     // [New] Clear terminal before verify to show fresh results?
     // Actually the "Verifying solution..." is already there. Let's keep it.
 
@@ -715,9 +796,44 @@ export const ChallengeProvider = ({
 
     for (const inputVal of inputs) {
       try {
-        // 1. Get Expected Output from JS Runner
+        // 1. Get Expected Output
         let expectedOutput = "";
-        if (currentChallenge.runner) {
+
+        // [NEW] Custom Generator for MP 1.3 (One approach sufficient)
+        if (currentChallenge.id === "1.3") {
+          const lines = inputVal.split("\n");
+          // Standard inputs are "Choice\nAmount"
+          const choice = lines[0]?.trim();
+          const valStr = lines[1]?.trim();
+          const val = parseFloat(valStr);
+
+          const PhpToUsd = 0.018;
+          const UsdToPhp = 56.0;
+
+          // Re-detect approach to determine expected format
+          // Switch -> {1:F2} -> 2 decimal places fixed (e.g. 1.80)
+          // If -> Math.Round(d, 2) -> 2 decimal places max (e.g. 1.8)
+          const usesSwitch = /\bswitch\b/.test(code);
+          // Default to If-style if Switch is not present
+
+          if (choice === "1") {
+            const res = val * PhpToUsd;
+            if (usesSwitch) {
+              expectedOutput = `Result: ${val} PHP = ${res.toFixed(2)} USD`;
+            } else {
+              const r = Math.round(res * 100) / 100;
+              expectedOutput = `Result: ${val} PHP = ${r} USD`;
+            }
+          } else if (choice === "2") {
+            const res = val * UsdToPhp;
+            if (usesSwitch) {
+              expectedOutput = `Result: ${val} USD = ${res.toFixed(2)} PHP`;
+            } else {
+              const r = Math.round(res * 100) / 100;
+              expectedOutput = `Result: ${val} USD = ${r} PHP`;
+            }
+          }
+        } else if (currentChallenge.runner) {
           const inputLines = inputVal.split("\n");
           let inputIdx = 0;
           await currentChallenge.runner(

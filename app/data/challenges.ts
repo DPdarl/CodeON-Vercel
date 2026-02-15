@@ -74,15 +74,73 @@ export const challenges: Challenge[] = [
     moduleId: 1,
     title: "Peso-Dollar Conversion",
     description:
-      "Create a C# program that converts between Philippine Pesos and US Dollars. Allow the user to convert in either direction using current exchange rates.",
+      "Create a C# program that converts between Philippine Pesos and US Dollars using ONE of the following approaches.\n\nSettings:\n- Strings: Use 'PHP' and 'USD'\n- Constants: PhpToUsd = 0.018, UsdToPhp = 56.0\n\nOptions (Choose 1):\n1. Switch Statement: Use placeholders ({0}, {1}) for output.\n2. If-Else Statement: Use string concatenation (+) and Math.Round() for output.",
     page: 5,
-    starterCode: `using System;\r\n\r\nclass Program\r\n{\r\n    static void Main(string[] args)\r\n    {\r\n        // Set the exchange rate (you can use any reasonable rate)\r\n        // Create a menu for PHP to USD or USD to PHP conversion\r\n        // Get user input and perform the conversion\r\n        // Display the result with appropriate formatting\r\n    }\r\n}\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n`,
-    hint: 'Define a constant for the exchange rate. Use string formatting to display currency values with 2 decimal places. Consider using the "$ " string interpolation feature.',
-    solution: `using System;\r\n\r\nclass Program\r\n{\r\n    static void Main(string[] args)\r\n    {\r\n        // Exchange rate (example value - can be updated)\r\n        const double phpToUsdRate = 0.018;\r\n        const double usdToPhpRate = 56.0;\r\n        \r\n        Console.WriteLine("Currency Converter");\r\n        Console.WriteLine("1. PHP to USD");\r\n        Console.WriteLine("2. USD to PHP");\r\n        Console.Write("Enter your choice (1 or 2): ");\r\n        \r\n        int choice = Convert.ToInt32(Console.ReadLine());\r\n        \r\n        if (choice == 1)\r\n        {\r\n            Console.Write("Enter amount in PHP: ");\r\n            double php = Convert.ToDouble(Console.ReadLine());\r\n            double usd = php * phpToUsdRate;\r\n            Console.WriteLine($"\${php:F2} PHP = \${usd:F2} USD");\r\n        }\r\n        else if (choice == 2)\r\n        {\r\n            Console.Write("Enter amount in USD: ");\r\n            double usd = Convert.ToDouble(Console.ReadLine());\r\n            double php = usd * usdToPhpRate;\r\n            Console.WriteLine($"\${usd:F2} USD = \${php:F2} PHP");\r\n        }\r\n        else\r\n        {\r\n            Console.WriteLine("Invalid choice!");\r\n        }\r\n    }\r\n}`,
+    starterCode: `using System;
+
+class Program
+{
+    static void Main(string[] args)
+    {
+        // Settings: Exchange Rates
+        const double PhpToUsd = 0.018;
+        const double UsdToPhp = 56.0;
+
+        Console.WriteLine("1. PHP to USD");
+        Console.WriteLine("2. USD to PHP");
+        Console.Write("Select (1 or 2): ");
+        
+        // TODO: Implement ONE of the approaches below:
+        
+        // Approach 1: Switch Statement
+        
+        // OR
+        
+        // Approach 2: If-Else Statement
+        
+    }
+}
+`,
+    hint: "Choose either a Switch statement or If-Else. Remember: Switch uses placeholders ({0}), If-Else uses concatenation (+).",
+    solution: `using System;
+
+class Program
+{
+    static void Main(string[] args)
+    {
+        const double PhpToUsd = 0.018;
+        const double UsdToPhp = 56.0;
+
+        Console.WriteLine("1. PHP to USD");
+        Console.WriteLine("2. USD to PHP");
+        Console.Write("Select (1 or 2): ");
+        string input = Console.ReadLine();
+
+        // --- Example: Using Switch ---
+        switch (input)
+        {
+            case "1":
+                Console.Write("Enter PHP: ");
+                double php = Convert.ToDouble(Console.ReadLine());
+                Console.WriteLine("Result: {0} PHP = {1:F2} USD", php, php * PhpToUsd);
+                break;
+            case "2":
+                Console.Write("Enter USD: ");
+                double usd = Convert.ToDouble(Console.ReadLine());
+                Console.WriteLine("Result: {0} USD = {1:F2} PHP", usd, usd * UsdToPhp);
+                break;
+            default:
+                Console.WriteLine("Invalid selection");
+                break;
+        }
+    }
+}`,
     language: "csharp",
     xpReward: 30,
     coinsReward: 10,
     difficulty: "Medium",
+    testInputs: ["1\n100", "2\n100"], // Simple single-pass inputs
+    // Runner removed: logic handled dynamically in ChallengeContext
   },
   {
     id: "1.4",
