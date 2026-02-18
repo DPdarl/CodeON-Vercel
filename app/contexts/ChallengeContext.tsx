@@ -10,7 +10,7 @@ import { useNavigate } from "@remix-run/react";
 import { challenges } from "~/data/challenges";
 import { toast } from "sonner";
 import type { Challenge } from "~/types/challenge.types";
-import { executeCode } from "~/utils/piston";
+import { executeCodeCode as executeCode } from "~/utils/judge0";
 import { lintCode, type LintError } from "~/utils/linter";
 import { useAuth } from "~/contexts/AuthContext";
 import {
