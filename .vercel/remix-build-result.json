@@ -1,0 +1,451 @@
+{
+  "buildManifest": {
+    "serverBundles": {
+      "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0": {
+        "id": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
+        "file": "build/server/nodejs-eyJydW50aW1lIjoibm9kZWpzIn0/index.js",
+        "config": {
+          "runtime": "nodejs"
+        }
+      }
+    },
+    "routeIdToServerBundleId": {
+      "routes/_app.instructor-management": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/_app.student-management": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/_app.admin-management": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/_app.play.multiplayer": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/_app.play.challenges": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/_app.play.adventure": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/_app.user-reports": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/_app.bug-reports": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/_app.leaderboard": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/_app.play._index": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/auth.onboarding": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/machine-problem": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/solo-challenge": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/_app.dashboard": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/_app.settings": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/_app.profile": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/auth.signup": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/_app.quests": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/_app.streak": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/api.avatar": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/auth.login": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/_app.about": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/_app.store": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/_index": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0"
+    },
+    "routes": {
+      "root": {
+        "path": "",
+        "id": "root",
+        "file": "app/root.tsx",
+        "config": {}
+      },
+      "routes/_app.instructor-management": {
+        "file": "app/routes/_app.instructor-management/route.tsx",
+        "id": "routes/_app.instructor-management",
+        "path": "instructor-management",
+        "parentId": "routes/_app",
+        "config": {
+          "runtime": "nodejs"
+        }
+      },
+      "routes/_app.student-management": {
+        "file": "app/routes/_app.student-management/route.tsx",
+        "id": "routes/_app.student-management",
+        "path": "student-management",
+        "parentId": "routes/_app",
+        "config": {
+          "runtime": "nodejs"
+        }
+      },
+      "routes/_app.admin-management": {
+        "file": "app/routes/_app.admin-management/route.tsx",
+        "id": "routes/_app.admin-management",
+        "path": "admin-management",
+        "parentId": "routes/_app",
+        "config": {
+          "runtime": "nodejs"
+        }
+      },
+      "routes/_app.play.multiplayer": {
+        "file": "app/routes/_app.play.multiplayer.tsx",
+        "id": "routes/_app.play.multiplayer",
+        "path": "play/multiplayer",
+        "parentId": "routes/_app",
+        "config": {
+          "runtime": "nodejs"
+        }
+      },
+      "routes/_app.play.challenges": {
+        "file": "app/routes/_app.play.challenges.tsx",
+        "id": "routes/_app.play.challenges",
+        "path": "play/challenges",
+        "parentId": "routes/_app",
+        "config": {
+          "runtime": "nodejs"
+        }
+      },
+      "routes/_app.play.adventure": {
+        "file": "app/routes/_app.play.adventure.tsx",
+        "id": "routes/_app.play.adventure",
+        "path": "play/adventure",
+        "parentId": "routes/_app",
+        "config": {
+          "runtime": "nodejs"
+        }
+      },
+      "routes/_app.user-reports": {
+        "file": "app/routes/_app.user-reports/route.tsx",
+        "id": "routes/_app.user-reports",
+        "path": "user-reports",
+        "parentId": "routes/_app",
+        "config": {
+          "runtime": "nodejs"
+        }
+      },
+      "routes/_app.bug-reports": {
+        "file": "app/routes/_app.bug-reports.tsx",
+        "id": "routes/_app.bug-reports",
+        "path": "bug-reports",
+        "parentId": "routes/_app",
+        "config": {
+          "runtime": "nodejs"
+        }
+      },
+      "routes/_app.leaderboard": {
+        "file": "app/routes/_app.leaderboard/route.tsx",
+        "id": "routes/_app.leaderboard",
+        "path": "leaderboard",
+        "parentId": "routes/_app",
+        "config": {
+          "runtime": "nodejs"
+        }
+      },
+      "routes/_app.play._index": {
+        "file": "app/routes/_app.play._index.tsx",
+        "id": "routes/_app.play._index",
+        "path": "play",
+        "index": true,
+        "parentId": "routes/_app",
+        "config": {
+          "runtime": "nodejs"
+        }
+      },
+      "routes/auth.onboarding": {
+        "file": "app/routes/auth.onboarding/route.tsx",
+        "id": "routes/auth.onboarding",
+        "path": "auth/onboarding",
+        "parentId": "root",
+        "config": {
+          "runtime": "nodejs"
+        }
+      },
+      "routes/machine-problem": {
+        "file": "app/routes/machine-problem/route.tsx",
+        "id": "routes/machine-problem",
+        "path": "machine-problem",
+        "parentId": "root",
+        "config": {
+          "runtime": "nodejs"
+        }
+      },
+      "routes/solo-challenge": {
+        "file": "app/routes/solo-challenge/route.tsx",
+        "id": "routes/solo-challenge",
+        "path": "solo-challenge",
+        "parentId": "root",
+        "config": {
+          "runtime": "nodejs"
+        }
+      },
+      "routes/_app.dashboard": {
+        "file": "app/routes/_app.dashboard/route.tsx",
+        "id": "routes/_app.dashboard",
+        "path": "dashboard",
+        "parentId": "routes/_app",
+        "config": {
+          "runtime": "nodejs"
+        }
+      },
+      "routes/_app.settings": {
+        "file": "app/routes/_app.settings/route.tsx",
+        "id": "routes/_app.settings",
+        "path": "settings",
+        "parentId": "routes/_app",
+        "config": {
+          "runtime": "nodejs"
+        }
+      },
+      "routes/_app.profile": {
+        "file": "app/routes/_app.profile/route.tsx",
+        "id": "routes/_app.profile",
+        "path": "profile",
+        "parentId": "routes/_app",
+        "config": {
+          "runtime": "nodejs"
+        }
+      },
+      "routes/auth.signup": {
+        "file": "app/routes/auth.signup/route.tsx",
+        "id": "routes/auth.signup",
+        "path": "auth/signup",
+        "parentId": "root",
+        "config": {
+          "runtime": "nodejs"
+        }
+      },
+      "routes/_app.quests": {
+        "file": "app/routes/_app.quests/route.tsx",
+        "id": "routes/_app.quests",
+        "path": "quests",
+        "parentId": "routes/_app",
+        "config": {
+          "runtime": "nodejs"
+        }
+      },
+      "routes/_app.streak": {
+        "file": "app/routes/_app.streak/route.tsx",
+        "id": "routes/_app.streak",
+        "path": "streak",
+        "parentId": "routes/_app",
+        "config": {
+          "runtime": "nodejs"
+        }
+      },
+      "routes/api.avatar": {
+        "file": "app/routes/api.avatar/route.tsx",
+        "id": "routes/api.avatar",
+        "path": "api/avatar",
+        "parentId": "root",
+        "config": {
+          "runtime": "nodejs"
+        }
+      },
+      "routes/auth.login": {
+        "file": "app/routes/auth.login/route.tsx",
+        "id": "routes/auth.login",
+        "path": "auth/login",
+        "parentId": "root",
+        "config": {
+          "runtime": "nodejs"
+        }
+      },
+      "routes/_app.about": {
+        "file": "app/routes/_app.about/route.tsx",
+        "id": "routes/_app.about",
+        "path": "about",
+        "parentId": "routes/_app",
+        "config": {
+          "runtime": "nodejs"
+        }
+      },
+      "routes/_app.store": {
+        "file": "app/routes/_app.store/route.tsx",
+        "id": "routes/_app.store",
+        "path": "store",
+        "parentId": "routes/_app",
+        "config": {
+          "runtime": "nodejs"
+        }
+      },
+      "routes/_index": {
+        "file": "app/routes/_index/route.tsx",
+        "id": "routes/_index",
+        "index": true,
+        "parentId": "root",
+        "config": {
+          "runtime": "nodejs"
+        }
+      },
+      "routes/_app": {
+        "file": "app/routes/_app.tsx",
+        "id": "routes/_app",
+        "parentId": "root",
+        "config": {}
+      }
+    }
+  },
+  "remixConfig": {
+    "appDirectory": "C:\\Users\\Thea\\OneDrive\\Desktop\\CodeON---Vercel\\app",
+    "basename": "/",
+    "buildDirectory": "C:\\Users\\Thea\\OneDrive\\Desktop\\CodeON---Vercel\\build",
+    "future": {
+      "v3_fetcherPersist": true,
+      "v3_relativeSplatPath": true,
+      "v3_throwAbortReason": true,
+      "v3_routeConfig": false,
+      "v3_singleFetch": false,
+      "v3_lazyRouteDiscovery": false,
+      "unstable_optimizeDeps": false
+    },
+    "manifest": false,
+    "publicPath": "/",
+    "routes": {
+      "root": {
+        "path": "",
+        "id": "root",
+        "file": "root.tsx"
+      },
+      "routes/_app.instructor-management": {
+        "file": "routes/_app.instructor-management/route.tsx",
+        "id": "routes/_app.instructor-management",
+        "path": "instructor-management",
+        "parentId": "routes/_app"
+      },
+      "routes/_app.student-management": {
+        "file": "routes/_app.student-management/route.tsx",
+        "id": "routes/_app.student-management",
+        "path": "student-management",
+        "parentId": "routes/_app"
+      },
+      "routes/_app.admin-management": {
+        "file": "routes/_app.admin-management/route.tsx",
+        "id": "routes/_app.admin-management",
+        "path": "admin-management",
+        "parentId": "routes/_app"
+      },
+      "routes/_app.play.multiplayer": {
+        "file": "routes/_app.play.multiplayer.tsx",
+        "id": "routes/_app.play.multiplayer",
+        "path": "play/multiplayer",
+        "parentId": "routes/_app"
+      },
+      "routes/_app.play.challenges": {
+        "file": "routes/_app.play.challenges.tsx",
+        "id": "routes/_app.play.challenges",
+        "path": "play/challenges",
+        "parentId": "routes/_app"
+      },
+      "routes/_app.play.adventure": {
+        "file": "routes/_app.play.adventure.tsx",
+        "id": "routes/_app.play.adventure",
+        "path": "play/adventure",
+        "parentId": "routes/_app"
+      },
+      "routes/_app.user-reports": {
+        "file": "routes/_app.user-reports/route.tsx",
+        "id": "routes/_app.user-reports",
+        "path": "user-reports",
+        "parentId": "routes/_app"
+      },
+      "routes/_app.bug-reports": {
+        "file": "routes/_app.bug-reports.tsx",
+        "id": "routes/_app.bug-reports",
+        "path": "bug-reports",
+        "parentId": "routes/_app"
+      },
+      "routes/_app.leaderboard": {
+        "file": "routes/_app.leaderboard/route.tsx",
+        "id": "routes/_app.leaderboard",
+        "path": "leaderboard",
+        "parentId": "routes/_app"
+      },
+      "routes/_app.play._index": {
+        "file": "routes/_app.play._index.tsx",
+        "id": "routes/_app.play._index",
+        "path": "play",
+        "index": true,
+        "parentId": "routes/_app"
+      },
+      "routes/auth.onboarding": {
+        "file": "routes/auth.onboarding/route.tsx",
+        "id": "routes/auth.onboarding",
+        "path": "auth/onboarding",
+        "parentId": "root"
+      },
+      "routes/machine-problem": {
+        "file": "routes/machine-problem/route.tsx",
+        "id": "routes/machine-problem",
+        "path": "machine-problem",
+        "parentId": "root"
+      },
+      "routes/solo-challenge": {
+        "file": "routes/solo-challenge/route.tsx",
+        "id": "routes/solo-challenge",
+        "path": "solo-challenge",
+        "parentId": "root"
+      },
+      "routes/_app.dashboard": {
+        "file": "routes/_app.dashboard/route.tsx",
+        "id": "routes/_app.dashboard",
+        "path": "dashboard",
+        "parentId": "routes/_app"
+      },
+      "routes/_app.settings": {
+        "file": "routes/_app.settings/route.tsx",
+        "id": "routes/_app.settings",
+        "path": "settings",
+        "parentId": "routes/_app"
+      },
+      "routes/_app.profile": {
+        "file": "routes/_app.profile/route.tsx",
+        "id": "routes/_app.profile",
+        "path": "profile",
+        "parentId": "routes/_app"
+      },
+      "routes/auth.signup": {
+        "file": "routes/auth.signup/route.tsx",
+        "id": "routes/auth.signup",
+        "path": "auth/signup",
+        "parentId": "root"
+      },
+      "routes/_app.quests": {
+        "file": "routes/_app.quests/route.tsx",
+        "id": "routes/_app.quests",
+        "path": "quests",
+        "parentId": "routes/_app"
+      },
+      "routes/_app.streak": {
+        "file": "routes/_app.streak/route.tsx",
+        "id": "routes/_app.streak",
+        "path": "streak",
+        "parentId": "routes/_app"
+      },
+      "routes/api.avatar": {
+        "file": "routes/api.avatar/route.tsx",
+        "id": "routes/api.avatar",
+        "path": "api/avatar",
+        "parentId": "root"
+      },
+      "routes/auth.login": {
+        "file": "routes/auth.login/route.tsx",
+        "id": "routes/auth.login",
+        "path": "auth/login",
+        "parentId": "root"
+      },
+      "routes/_app.about": {
+        "file": "routes/_app.about/route.tsx",
+        "id": "routes/_app.about",
+        "path": "about",
+        "parentId": "routes/_app"
+      },
+      "routes/_app.store": {
+        "file": "routes/_app.store/route.tsx",
+        "id": "routes/_app.store",
+        "path": "store",
+        "parentId": "routes/_app"
+      },
+      "routes/_index": {
+        "file": "routes/_index/route.tsx",
+        "id": "routes/_index",
+        "index": true,
+        "parentId": "root"
+      },
+      "routes/_app": {
+        "file": "routes/_app.tsx",
+        "id": "routes/_app",
+        "parentId": "root"
+      }
+    },
+    "serverBuildFile": "index.js",
+    "serverModuleFormat": "esm",
+    "ssr": true
+  },
+  "viteConfig": {
+    "build": {
+      "assetsDir": "assets"
+    }
+  }
+}
