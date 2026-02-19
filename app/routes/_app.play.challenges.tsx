@@ -13,6 +13,11 @@ import {
   Code,
   Award,
   Star,
+  Terminal, // [NEW]
+  Repeat, // [NEW]
+  Layers, // [NEW]
+  Wand2, // [NEW]
+  Crown, // [NEW]
 } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import { Badge } from "~/components/ui/badge";
@@ -108,21 +113,21 @@ const ChallengeRow = ({
 
   return (
     <div
-      className={`flex items-center justify-between py-3 px-4 border-b border-gray-100 dark:border-gray-800/50 last:border-0 rounded-lg transition-colors group ${
+      className={`grid grid-cols-[1fr_auto] items-center gap-3 py-3 px-3 sm:px-4 border-b border-gray-100 dark:border-gray-800/50 last:border-0 rounded-lg transition-colors group ${
         status === "locked"
           ? "opacity-60 cursor-not-allowed bg-transparent"
           : "hover:bg-gray-50 dark:hover:bg-white/5 cursor-pointer"
       }`}
       onClick={handleStart} // Make whole row clickable if active
     >
-      <div className="flex items-center gap-4">
-        <span className="text-gray-400 dark:text-gray-500 font-mono text-xs w-20 flex items-center gap-1">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 min-w-0">
+        <span className="text-gray-400 dark:text-gray-500 font-mono text-[10px] sm:text-xs flex items-center gap-1 sm:w-20 shrink-0 uppercase tracking-wide">
           {status === "locked" && <Lock size={10} />}
-          Exercise {challenge.id}
+          MP {challenge.id}
         </span>
-        <div className="flex flex-col">
+        <div className="flex flex-col min-w-0">
           <span
-            className={`font-medium text-sm ${
+            className={`font-medium text-sm sm:text-base truncate pr-2 ${
               status === "locked"
                 ? "text-gray-400 dark:text-gray-500"
                 : "text-gray-900 dark:text-gray-200"
@@ -132,7 +137,7 @@ const ChallengeRow = ({
           </span>
 
           {/* Star Rating Display */}
-          <div className="flex gap-0.5 mt-1">
+          <div className="flex gap-0.5 mt-0.5 sm:mt-1">
             {[1, 2, 3].map((star) => (
               <Star
                 key={star}
@@ -149,7 +154,7 @@ const ChallengeRow = ({
           </div>
         </div>
       </div>
-      <div onClick={(e) => e.stopPropagation()}>
+      <div onClick={(e) => e.stopPropagation()} className="shrink-0">
         <StatusButton status={status} onClick={handleStart} />
       </div>
     </div>
@@ -411,25 +416,96 @@ const ProgressWidget = ({
   );
 };
 
-const BadgesWidget = ({ user }: { user: any }) => (
-  <div className="bg-white dark:bg-[#1E1E1E] rounded-xl border border-gray-200 dark:border-gray-800 p-6 shadow-sm dark:shadow-none">
-    <div className="flex justify-between items-center mb-4">
-      <h3 className="font-bold text-gray-900 dark:text-white">Certificates</h3>
-      <span className="text-xs text-gray-500">0/6</span>
+const BadgesWidget = ({ user }: { user: any }) => {
+  const { completed } = useChallengeContext();
+
+  // Define Badge Data with Titles
+  const badges = [
+    {
+      moduleId: 1,
+      title: "Console Commander",
+      icon: Terminal,
+      color: "text-blue-500",
+    },
+    { moduleId: 2, title: "Logic Lord", icon: Zap, color: "text-yellow-500" },
+    {
+      moduleId: 3,
+      title: "Loop Legend",
+      icon: Repeat,
+      color: "text-green-500",
+    }, // Need Repeat icon
+    { moduleId: 4, title: "Array Ace", icon: Layers, color: "text-purple-500" }, // Need Layers icon
+    {
+      moduleId: 5,
+      title: "Method Magician",
+      icon: Wand2,
+      color: "text-pink-500",
+    }, // Need Wand2 icon
+    {
+      moduleId: 6,
+      title: "Object Oriented Oracle",
+      icon: Crown,
+      color: "text-orange-500",
+    }, // Need Crown icon
+  ];
+
+  // Helper to check if a module is fully completed
+  // For now, simpler logic: verify if the *last* challenge of a module is in `completed`?
+  // Or just check if ALL challenges of that module are in `completed`.
+  const isModuleCompleted = (modId: number) => {
+    const modChallenges = challenges.filter((c) => c.moduleId === modId);
+    if (modChallenges.length === 0) return false;
+    return modChallenges.every((c) => completed.includes(c.id));
+  };
+
+  const earnedBadges = badges.filter((b) =>
+    isModuleCompleted(b.moduleId),
+  ).length;
+
+  return (
+    <div className="bg-white dark:bg-[#1E1E1E] rounded-xl border border-gray-200 dark:border-gray-800 p-6 shadow-sm dark:shadow-none">
+      <div className="flex justify-between items-center mb-4">
+        <h3 className="font-bold text-gray-900 dark:text-white">
+          Certificates
+        </h3>
+        <span className="text-xs text-gray-500">{earnedBadges}/6</span>
+      </div>
+      <div className="grid grid-cols-3 gap-3">
+        {badges.map((badge) => {
+          const unlocked = isModuleCompleted(badge.moduleId);
+          return (
+            <div
+              key={badge.moduleId}
+              className={`aspect-square rounded-lg border flex flex-col items-center justify-center p-2 text-center gap-2 transition-all duration-300 group relative
+                ${
+                  unlocked
+                    ? "bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800"
+                    : "bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-800 grayscale opacity-60"
+                }
+              `}
+              title={badge.title}
+            >
+              <badge.icon
+                className={`w-6 h-6 ${
+                  unlocked ? badge.color : "text-gray-400"
+                } transition-transform group-hover:scale-110`}
+              />
+              <span className="text-[10px] font-bold leading-tight line-clamp-2">
+                {badge.title}
+              </span>
+
+              {!unlocked && (
+                <div className="absolute inset-0 flex items-center justify-center bg-gray-100/50 dark:bg-gray-900/50 backdrop-blur-[1px] rounded-lg">
+                  <Lock size={12} className="text-gray-400" />
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
     </div>
-    <div className="grid grid-cols-4 gap-2">
-      {[1, 2, 3, 4].map((i) => (
-        <div
-          key={i}
-          className="aspect-square bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 flex items-center justify-center group relative cursor-pointer hover:border-blue-500/50 transition-colors"
-          title={`Module ${i} Badge`}
-        >
-          <Award className="text-gray-400 dark:text-gray-700 w-6 h-6 group-hover:text-blue-500 transition-colors" />
-        </div>
-      ))}
-    </div>
-  </div>
-);
+  );
+};
 
 // --- Main Page Component ---
 
@@ -453,37 +529,40 @@ const ChallengesContent = () => {
 
       <div className="max-w-7xl mx-auto px-4 py-8 lg:px-8">
         {/* Header Section */}
-        <div className="mb-12 flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <Badge
-                variant="outline"
-                className="border-green-500/30 text-green-600 dark:text-green-400 bg-green-500/10 uppercase tracking-widest text-[10px]"
-              >
-                Learning Path
-              </Badge>
+        {/* Header Section */}
+        <div className="mb-12">
+          <Link
+            to="/dashboard"
+            className="inline-flex items-center text-sm text-gray-500 hover:text-blue-600 transition-colors mb-4"
+          >
+            <ChevronDown className="rotate-90 mr-1 w-4 h-4" /> Back to Dashboard
+          </Link>
+
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <Badge
+                  variant="outline"
+                  className="border-green-500/30 text-green-600 dark:text-green-400 bg-green-500/10 uppercase tracking-widest text-[10px]"
+                >
+                  Learning Path
+                </Badge>
+              </div>
+              <h1 className="text-4xl md:text-5xl font-black text-gray-900 dark:text-white mb-2 tracking-tight">
+                C#allenges
+              </h1>
+              <p className="text-gray-500 dark:text-gray-400 max-w-xl">
+                From "Hello World" to advanced Software Architecture. Your
+                journey to becoming a .NET Developer starts here.
+              </p>
             </div>
-            <h1 className="text-3xl md:text-4xl font-black text-gray-900 dark:text-white mb-2 tracking-tight">
-              C# Mastery
-            </h1>
-            <p className="text-gray-500 dark:text-gray-400 max-w-xl">
-              From "Hello World" to advanced Software Architecture. Your journey
-              to becoming a .NET Developer starts here.
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <Link to="/dashboard">
-              <Button className="bg-blue-600 hover:bg-blue-700 text-white font-semibold border border-blue-500 shadow-sm shadow-blue-500/20">
-                Back to Dashboard
-              </Button>
-            </Link>
           </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* LEFT COLUMN: Roadmap */}
           <div className="lg:col-span-2">
-            <div className="space-y-0">
+            <div className="space-y-0 max-w-2xl mx-auto">
               {MODULES.map((module) => (
                 <ModuleSection
                   key={module.id}
@@ -493,16 +572,16 @@ const ChallengesContent = () => {
                   isLocked={isModuleLocked(module.id, completed)}
                 />
               ))}
-            </div>
 
-            {/* End Node */}
-            <div className="relative pl-12 pt-4">
-              <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-gradient-to-b from-gray-800 to-transparent h-16" />
-              <div className="w-8 h-8 rounded-full bg-gray-900 border-2 border-dashed border-gray-700 flex items-center justify-center text-gray-600 font-bold text-xs absolute left-0">
-                <Star size={14} />
-              </div>
-              <div className="text-gray-500 text-sm ml-2 pt-1 font-medium italic">
-                More modules coming soon...
+              {/* End Node */}
+              <div className="relative pl-12 pt-4">
+                <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-gradient-to-b from-gray-800 to-transparent h-16" />
+                <div className="w-8 h-8 rounded-full bg-gray-900 border-2 border-dashed border-gray-700 flex items-center justify-center text-gray-600 font-bold text-xs absolute left-0">
+                  <Star size={14} />
+                </div>
+                <div className="text-gray-500 text-sm ml-4 pt-1 font-medium italic">
+                  More modules coming soon...
+                </div>
               </div>
             </div>
           </div>

@@ -82,22 +82,24 @@ export function MobileHeader({
 
   return (
     <>
-      <header className="sticky top-0 z-30 w-full border-b bg-white/95 dark:bg-gray-900/95 backdrop-blur-md h-14 px-3 flex items-center justify-between gap-2">
+      <header className="sticky top-0 z-30 w-full border-b bg-white/95 dark:bg-gray-900/95 backdrop-blur-md h-14 px-2 flex items-center justify-between gap-1">
         {/* LEFT: Logo Section */}
         <div className="flex-none flex items-center">
           <img
             src="/assets/icons/coinv2.png"
             alt="CodeON"
-            className="h-8 w-8 object-contain drop-shadow-sm"
+            className="h-7 w-7 object-contain drop-shadow-sm"
           />
         </div>
 
         {/* MIDDLE: Stats Row (Centered & Scrollable if needed) */}
-        <div className="flex-1 flex justify-center overflow-x-auto no-scrollbar mask-gradient-x mx-2">
-          <div className="flex items-center space-x-2 shrink-0">
+        <div className="flex-1 flex justify-center overflow-x-auto no-scrollbar mask-gradient-x mx-1">
+          <div className="flex items-center space-x-1.5 shrink-0">
             {/* Level (Small Pill) */}
-            <div className="px-2 py-0.5 rounded-md bg-yellow-100 dark:bg-yellow-900/30 text-[10px] font-black text-yellow-700 dark:text-yellow-400 border border-yellow-200 dark:border-yellow-800 uppercase tracking-wider shrink-0">
-              LVL {currentLevel}
+            {/* Level (Small Pill) - Compact Version */}
+            <div className="px-1.5 py-0.5 rounded-md bg-yellow-100 dark:bg-yellow-900/30 text-[10px] font-black text-yellow-700 dark:text-yellow-400 border border-yellow-200 dark:border-yellow-800 uppercase tracking-wider shrink-0 flex items-center gap-0.5">
+              <span>L</span>
+              <span>{currentLevel}</span>
             </div>
 
             <MobileStatItem

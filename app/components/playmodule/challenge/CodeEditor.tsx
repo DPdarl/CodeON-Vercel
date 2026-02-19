@@ -228,8 +228,9 @@ const CodeEditor = ({
           onMount={handleEditorDidMount}
           beforeMount={handleBeforeMount}
           options={{
-            readOnly: isReviewMode || (isMobile && !isMobileEditMode), // Auto-lock if Review Mode OR (Mobile & Read Mode)
-            domReadOnly: isReviewMode || (isMobile && !isMobileEditMode), // Prevents keyboard from popping up
+            readOnly: isReviewMode || (isMobile && !isMobileEditMode),
+            domReadOnly: isReviewMode || (isMobile && !isMobileEditMode),
+            contextmenu: !(isReviewMode || (isMobile && !isMobileEditMode)), // HTML Context Menu disabled in read mode?
             fixedOverflowWidgets: true,
             automaticLayout: true,
             fontFamily: "'Fira Code', 'Cascadia Code', Consolas, monospace",
@@ -244,11 +245,13 @@ const CodeEditor = ({
             smoothScrolling: true,
             renderWhitespace: "selection",
             wordWrap: "on",
-            // Crucial for "Tab" to accept suggestions instead of moving focus
             accessibilitySupport: "off",
             tabCompletion: "on",
             snippetSuggestions: "top",
-            quickSuggestions: { other: true, comments: true, strings: true },
+            quickSuggestions:
+              isReviewMode || (isMobile && !isMobileEditMode)
+                ? false
+                : { other: true, comments: true, strings: true },
             suggest: {
               snippetsPreventQuickSuggestions: false,
             },

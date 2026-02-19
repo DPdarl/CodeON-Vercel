@@ -18,7 +18,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from "~/components/ui/dialog";
-import { Loader2, Backpack, Minus, Plus, ShoppingBag } from "lucide-react";
+import {
+  Loader2,
+  Backpack,
+  Minus,
+  Plus,
+  ShoppingBag,
+  Sparkles,
+} from "lucide-react";
 import { motion } from "framer-motion";
 import { useAuth } from "~/contexts/AuthContext";
 import { toast } from "sonner";
@@ -57,7 +64,7 @@ export function StoreTab() {
       user.uid,
       selectedItem,
       user,
-      quantity
+      quantity,
     );
 
     if (result.success) {
@@ -83,177 +90,173 @@ export function StoreTab() {
   };
 
   return (
-    <div className="max-w-6xl mx-auto space-y-8 pb-12">
-      {/* Header */}
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-      >
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <IconStore className="w-8 h-8 text-indigo-500" />
-            <h1 className="text-4xl font-extrabold text-gray-900 dark:text-white">
+    <div className="max-w-7xl mx-auto pb-12 font-sans">
+      {/* 1. HERO SECTION */}
+      <div className="relative overflow-hidden bg-gradient-to-br from-indigo-900 via-purple-900 to-slate-900 dark:from-black dark:via-gray-900 dark:to-slate-950 rounded-b-3xl sm:rounded-3xl shadow-2xl p-6 sm:p-12 mb-8 text-white">
+        {/* Background Effects */}
+        <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/20 rounded-full blur-3xl -z-10 translate-x-1/2 -translate-y-1/2" />
+        <div className="absolute bottom-0 left-0 w-48 h-48 bg-purple-500/20 rounded-full blur-3xl -z-10 -translate-x-1/2 translate-y-1/2" />
+
+        <div className="flex flex-col items-center justify-center gap-4 relative z-10 text-center">
+          <div className="space-y-2">
+            <h1 className="text-3xl sm:text-5xl font-black tracking-tight flex items-center justify-center gap-3">
+              <IconStore className="w-10 h-10 sm:w-14 sm:h-14 text-yellow-400 drop-shadow-lg" />
               The Store
             </h1>
-          </div>
-          {/* Coin Balance */}
-          <div className="flex-shrink-0 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-full p-2 pr-6 shadow-md flex items-center gap-3">
-            <img
-              src="/assets/icons/coinv2.png"
-              alt="Coins"
-              className="w-8 h-8"
-            />
-            <div className="flex flex-col">
-              <span className="text-xs text-gray-500 dark:text-gray-400 font-medium leading-none">
-                Your Coins
-              </span>
-              <span className="text-lg font-bold text-gray-900 dark:text-white leading-none">
-                {userCoins.toLocaleString()}
-              </span>
-            </div>
+            <p className="text-indigo-200 text-sm sm:text-base max-w-md mx-auto">
+              Spend your hard-earned coins on power-ups to boost your learning
+              journey
+            </p>
           </div>
         </div>
-      </motion.div>
+      </div>
 
-      {/* Tabs */}
-      <Tabs defaultValue="powerups" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 max-w-md mx-auto h-12 rounded-xl">
-          <TabsTrigger value="powerups" className="h-10 rounded-lg">
-            <BulbIcon className="w-4 h-4 mr-2" />
-            Power-Ups
-          </TabsTrigger>
-          <TabsTrigger value="inventory" className="h-10 rounded-lg">
-            <Backpack className="w-4 h-4 mr-2" />
-            Inventory
-          </TabsTrigger>
-        </TabsList>
+      {/* 2. MAIN CONTENT AREA */}
+      <div className="px-4">
+        <Tabs defaultValue="powerups" className="w-full">
+          <div className="flex justify-center mb-8">
+            <TabsList className="bg-gray-100 dark:bg-gray-800 p-1.5 rounded-full shadow-inner">
+              <TabsTrigger
+                value="powerups"
+                className="rounded-full px-6 py-2.5 text-sm sm:text-base font-bold data-[state=active]:bg-white data-[state=active]:text-indigo-600 data-[state=active]:shadow-md transition-all"
+              >
+                <BulbIcon className="w-4 h-4 mr-2" />
+                Power-Ups
+              </TabsTrigger>
+              <TabsTrigger
+                value="inventory"
+                className="rounded-full px-6 py-2.5 text-sm sm:text-base font-bold data-[state=active]:bg-white data-[state=active]:text-indigo-600 data-[state=active]:shadow-md transition-all"
+              >
+                <Backpack className="w-4 h-4 mr-2" />
+                Inventory
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
-        <TabsContent value="powerups">
-          <motion.div
-            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.1 }}
-          >
-            {POWER_UPS.map((item) => (
-              <PowerUpCard
-                key={item.id}
-                item={item}
-                onPurchaseClick={() => openPurchaseModal(item)}
-                userCoins={userCoins}
+          <TabsContent value="powerups" className="space-y-8">
+            {/* Featured Header (Optional) */}
+            <div className="flex items-center gap-2 mb-4 px-2">
+              <Sparkles className="w-5 h-5 text-indigo-500" />
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+                Featured Items
+              </h3>
+            </div>
+
+            <motion.div
+              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+            >
+              {POWER_UPS.map((item) => (
+                <PowerUpCard
+                  key={item.id}
+                  item={item}
+                  onPurchaseClick={() => openPurchaseModal(item)}
+                  userCoins={userCoins}
+                />
+              ))}
+            </motion.div>
+          </TabsContent>
+
+          <TabsContent value="inventory" className="space-y-8">
+            <motion.div
+              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+            >
+              <InventoryCard
+                name="Streak Freeze"
+                count={user?.streakFreezes || 0}
+                icon={SnowflakeIcon}
+                color="text-blue-500 bg-blue-100 dark:bg-blue-900/40"
+                description="Protect your streak"
               />
-            ))}
-          </motion.div>
-        </TabsContent>
-
-        <TabsContent value="inventory">
-          <motion.div
-            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.1 }}
-          >
-            <InventoryCard
-              name="Streak Freeze"
-              count={user?.streakFreezes || 0}
-              icon={SnowflakeIcon}
-              color="text-blue-500"
-              description="Protect your streak for a day."
-            />
-            <InventoryCard
-              name="Hints"
-              count={user?.hints || 0}
-              icon={BulbIcon}
-              image="/assets/icons/bulb.png"
-              color="text-yellow-500"
-              description="Get help on tough challenges."
-            />
-            <InventoryCard
-              name="Hearts"
-              count={user?.hearts || 0}
-              max={5}
-              icon={HeartIcon}
-              color="text-red-500"
-              description="Lives remaining."
-            />
-          </motion.div>
-        </TabsContent>
-      </Tabs>
+              <InventoryCard
+                name="Hints"
+                count={user?.hints || 0}
+                icon={BulbIcon}
+                image="/assets/icons/bulb.png"
+                color="text-yellow-500 bg-yellow-100 dark:bg-yellow-900/40"
+                description="Help on tough levels"
+              />
+              <InventoryCard
+                name="Hearts"
+                count={user?.hearts || 0}
+                max={5}
+                icon={HeartIcon}
+                color="text-red-500 bg-red-100 dark:bg-red-900/40"
+                description="Lives remaining"
+              />
+            </motion.div>
+          </TabsContent>
+        </Tabs>
+      </div>
 
       {/* --- PURCHASE CONFIRMATION MODAL --- */}
       <Dialog
         open={!!selectedItem}
         onOpenChange={(open) => !open && setSelectedItem(null)}
       >
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <ShoppingBag className="w-5 h-5 text-indigo-500" />
-              Confirm Purchase
-            </DialogTitle>
-            <DialogDescription>
-              Are you sure you want to buy this item?
-            </DialogDescription>
-          </DialogHeader>
+        <DialogContent className="sm:max-w-md rounded-3xl border-none shadow-2xl bg-white dark:bg-gray-900 p-0 overflow-hidden">
+          {/* Modal Header with Color */}
+          <div
+            className={`h-24 ${
+              selectedItem?.bgColor || "bg-gray-100"
+            } relative flex items-center justify-center`}
+          >
+            <div className="absolute inset-0 bg-black/5 dark:bg-black/20" />{" "}
+            {/* Subtle overlay */}
+            {selectedItem?.image ? (
+              <img
+                src={selectedItem.image}
+                alt={selectedItem.name}
+                className="w-16 h-16 object-contain relative z-10 drop-shadow-md"
+              />
+            ) : (
+              selectedItem && (
+                <selectedItem.icon
+                  className={`w-12 h-12 ${selectedItem.color} relative z-10 drop-shadow-md`}
+                />
+              )
+            )}
+          </div>
 
-          {selectedItem && (
-            <div className="py-4 space-y-6">
-              {/* Item Preview */}
-              <div className="flex items-center gap-4 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-2xl border border-gray-100 dark:border-gray-800">
-                <div
-                  className={`w-16 h-16 rounded-xl ${selectedItem.bgColor} flex items-center justify-center shrink-0`}
-                >
-                  {selectedItem.image ? (
-                    <img
-                      src={selectedItem.image}
-                      alt={selectedItem.name}
-                      className="w-10 h-10 object-contain"
-                    />
-                  ) : (
-                    <selectedItem.icon
-                      className={`w-8 h-8 ${selectedItem.color}`}
-                    />
-                  )}
-                </div>
-                <div>
-                  <h4 className="font-bold text-lg">{selectedItem.name}</h4>
-                  <div className="flex items-center gap-1 text-gray-500">
-                    <img
-                      src="/assets/icons/coinv2.png"
-                      alt="C"
-                      className="w-4 h-4"
-                    />
-                    <span className="font-mono font-bold">
-                      {selectedItem.cost}
-                    </span>{" "}
-                    each
-                  </div>
-                </div>
-              </div>
+          <div className="p-6">
+            <DialogHeader className="mb-4">
+              <DialogTitle className="text-2xl font-black text-center text-gray-900 dark:text-white">
+                {selectedItem?.name}
+              </DialogTitle>
+              <DialogDescription className="text-center text-gray-500">
+                Are you sure you want to buy this item?
+              </DialogDescription>
+            </DialogHeader>
 
+            <div className="space-y-6">
               {/* Quantity Selector */}
-              {selectedItem.allowQuantity && (
-                <div className="flex items-center justify-between px-2">
-                  <span className="text-sm font-medium text-gray-500">
+              {selectedItem?.allowQuantity && (
+                <div className="flex items-center justify-between bg-gray-50 dark:bg-gray-800/50 p-3 rounded-2xl px-4">
+                  <span className="text-sm font-bold text-gray-500 uppercase tracking-wider">
                     Quantity
                   </span>
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-4">
                     <Button
                       variant="outline"
                       size="icon"
-                      className="h-8 w-8 rounded-lg"
+                      className="h-9 w-9 rounded-xl border-gray-300 dark:border-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700"
                       onClick={() => adjustQuantity(-1)}
                       disabled={quantity <= 1}
                     >
                       <Minus className="w-4 h-4" />
                     </Button>
-                    <span className="w-8 text-center font-bold text-lg">
+                    <span className="w-6 text-center font-black text-xl">
                       {quantity}
                     </span>
                     <Button
                       variant="outline"
                       size="icon"
-                      className="h-8 w-8 rounded-lg"
+                      className="h-9 w-9 rounded-xl border-gray-300 dark:border-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700"
                       onClick={() => adjustQuantity(1)}
                       disabled={quantity >= 10}
                     >
@@ -264,41 +267,41 @@ export function StoreTab() {
               )}
 
               {/* Total Cost & Validation */}
-              <div className="flex items-center justify-between border-t pt-4 mt-4">
-                <span className="font-bold text-gray-900 dark:text-white">
-                  Total Cost
-                </span>
+              <div className="flex items-center justify-between border-t border-gray-100 dark:border-gray-800 pt-4">
+                <span className="font-bold text-gray-500">Total Cost</span>
                 <div className="flex items-center gap-2">
                   <img
                     src="/assets/icons/coinv2.png"
                     alt="C"
-                    className="w-5 h-5"
+                    className="w-6 h-6"
                   />
                   <span
-                    className={`text-xl font-black ${
-                      userCoins < selectedItem.cost * quantity
+                    className={`text-2xl font-black ${
+                      selectedItem && userCoins < selectedItem.cost * quantity
                         ? "text-red-500"
                         : "text-indigo-600 dark:text-indigo-400"
                     }`}
                   >
-                    {(selectedItem.cost * quantity).toLocaleString()}
+                    {selectedItem &&
+                      (selectedItem.cost * quantity).toLocaleString()}
                   </span>
                 </div>
               </div>
 
-              {userCoins < selectedItem.cost * quantity && (
-                <p className="text-red-500 text-sm text-center font-medium bg-red-50 dark:bg-red-950/30 p-2 rounded-lg">
-                  You need{" "}
+              {selectedItem && userCoins < selectedItem.cost * quantity && (
+                <p className="text-red-500 text-sm text-center font-bold bg-red-50 dark:bg-red-950/30 p-2.5 rounded-xl border border-red-100 dark:border-red-900/50">
+                  Not enough coins! Need{" "}
                   {(selectedItem.cost * quantity - userCoins).toLocaleString()}{" "}
-                  more coins!
+                  more.
                 </p>
               )}
             </div>
-          )}
+          </div>
 
-          <DialogFooter className="gap-2 sm:gap-0">
+          <DialogFooter className="p-6 pt-0 gap-3 grid grid-cols-2">
             <Button
-              variant="ghost"
+              variant="outline"
+              className="w-full h-12 rounded-xl font-bold border-gray-200 dark:border-gray-800 hover:bg-gray-100 dark:hover:bg-gray-800"
               onClick={() => setSelectedItem(null)}
               disabled={isProcessing}
             >
@@ -311,7 +314,7 @@ export function StoreTab() {
                 userCoins < selectedItem.cost * quantity ||
                 isProcessing
               }
-              className="bg-indigo-600 hover:bg-indigo-700 text-white w-full sm:w-auto font-bold"
+              className="bg-indigo-600 hover:bg-indigo-700 text-white w-full h-12 rounded-xl font-bold shadow-lg shadow-indigo-500/20"
             >
               {isProcessing ? (
                 <>
@@ -319,7 +322,7 @@ export function StoreTab() {
                   Processing...
                 </>
               ) : (
-                "Confirm Purchase"
+                "Confirm"
               )}
             </Button>
           </DialogFooter>
@@ -329,52 +332,70 @@ export function StoreTab() {
   );
 }
 
+// --- SUB-COMPONENTS with New Design ---
+
 function PowerUpCard({ item, onPurchaseClick, userCoins }: any) {
   const { icon: Icon } = item;
-  // Visual hint if they can't afford even one
   const canAffordOne = userCoins >= item.cost;
 
   return (
-    <Card
-      className="bg-white dark:bg-gray-900 shadow-lg border-gray-100 dark:border-gray-800 rounded-3xl flex flex-col overflow-hidden hover:shadow-xl transition-shadow cursor-pointer group"
-      onClick={onPurchaseClick}
-    >
-      <CardHeader className="flex-col items-center text-center pb-2">
+    <motion.div whileHover={{ y: -5 }} whileTap={{ scale: 0.98 }}>
+      <Card
+        className="bg-white dark:bg-gray-900 border-none shadow-lg hover:shadow-2xl transition-all duration-300 rounded-3xl overflow-hidden cursor-pointer group h-full flex flex-col ring-1 ring-gray-100 dark:ring-gray-800"
+        onClick={onPurchaseClick}
+      >
+        {/* Card Image Area with Gradient Background */}
         <div
-          className={`w-20 h-20 rounded-3xl ${item.bgColor} flex items-center justify-center mb-4 transition-transform group-hover:scale-110`}
+          className={`h-32 ${item.bgColor} relative flex items-center justify-center overflow-hidden`}
         >
-          {item.image ? (
-            <img
-              src={item.image}
-              alt={item.name}
-              className="w-12 h-12 object-contain"
-            />
-          ) : (
-            <Icon className={`w-10 h-10 ${item.color}`} />
-          )}
-        </div>
-        <CardTitle className="text-xl font-bold">{item.name}</CardTitle>
-      </CardHeader>
-      <CardContent className="flex-1 text-center px-6">
-        <CardDescription className="text-sm">
-          {item.description}
-        </CardDescription>
-      </CardContent>
-      <CardFooter className="pt-2 pb-6">
-        <Button
-          className="w-full h-12 rounded-xl text-base font-bold"
-          variant={canAffordOne ? "default" : "secondary"}
-        >
-          <div className="flex items-center gap-2">
-            <span>Buy</span>
-            <div className="flex items-center gap-1 bg-black/10 dark:bg-white/10 px-2 py-0.5 rounded-lg">
-              <img src="/assets/icons/coinv2.png" alt="C" className="w-4 h-4" />
-              <span>{item.cost}</span>
-            </div>
+          {/* Decorative circles */}
+          <div className="absolute top-0 right-0 w-32 h-32 bg-white/20 rounded-full -translate-y-1/2 translate-x-1/2" />
+          <div className="absolute bottom-0 left-0 w-24 h-24 bg-black/10 dark:bg-black/20 rounded-full translate-y-1/2 -translate-x-1/2" />
+
+          <div className="relative z-10 p-4 transition-transform duration-500 group-hover:scale-110">
+            {item.image ? (
+              <img
+                src={item.image}
+                alt={item.name}
+                className="w-20 h-20 object-contain drop-shadow-xl"
+              />
+            ) : (
+              <Icon className={`w-16 h-16 ${item.color} drop-shadow-xl`} />
+            )}
           </div>
-        </Button>
-      </CardFooter>
-    </Card>
+        </div>
+
+        <div className="p-5 flex-1 flex flex-col">
+          <div className="flex justify-between items-start mb-2">
+            <h3 className="font-bold text-lg text-gray-900 dark:text-white">
+              {item.name}
+            </h3>
+            <Badge className="bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700">
+              Lvl 1
+            </Badge>
+          </div>
+
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-6 flex-1">
+            {item.description}
+          </p>
+
+          <Button
+            className={`w-full h-12 rounded-xl font-bold text-base shadow-md transition-all ${
+              canAffordOne
+                ? "bg-indigo-600 hover:bg-indigo-700 text-white"
+                : "bg-gray-100 text-gray-400 dark:bg-gray-800 dark:text-gray-600 hover:bg-gray-200 dark:hover:bg-gray-800"
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <span className={canAffordOne ? "" : "line-through"}>
+                {item.cost}
+              </span>
+              <img src="/assets/icons/coinv2.png" alt="C" className="w-5 h-5" />
+            </div>
+          </Button>
+        </div>
+      </Card>
+    </motion.div>
   );
 }
 
@@ -383,30 +404,44 @@ function InventoryCard({
   count,
   max,
   icon: Icon,
-  color,
+  color, // Expecting "text-color bg-color" string or similar
   description,
   image,
 }: any) {
   return (
-    <Card className="bg-white dark:bg-gray-900 shadow-sm border border-gray-100 dark:border-gray-800 rounded-3xl flex items-center p-4 gap-4">
+    <Card className="bg-white dark:bg-gray-900 border-none shadow-md rounded-2xl p-4 flex items-center gap-4 ring-1 ring-gray-100 dark:ring-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
       <div
-        className={`w-14 h-14 rounded-2xl bg-gray-50 dark:bg-gray-800 flex items-center justify-center shrink-0`}
+        className={`w-16 h-16 rounded-2xl flex items-center justify-center shrink-0 ${color}`}
       >
         {image ? (
-          <img src={image} alt={name} className="w-9 h-9 object-contain" />
+          <img src={image} alt={name} className="w-10 h-10 object-contain" />
         ) : (
-          <Icon className={`w-7 h-7 ${color}`} />
+          <Icon className="w-8 h-8 opacity-80" />
         )}
       </div>
       <div>
-        <div className="text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+        <h4 className="font-bold text-gray-900 dark:text-white text-base">
           {name}
-        </div>
-        <div className="text-2xl font-black text-gray-900 dark:text-white">
+        </h4>
+        <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+          {description}
+        </p>
+        <div className="text-xl font-black text-gray-900 dark:text-white flex items-baseline gap-1">
           x{count}{" "}
-          {max && <span className="text-gray-400 text-lg">/ {max}</span>}
+          {max && (
+            <span className="text-gray-400 text-sm font-medium">/ {max}</span>
+          )}
         </div>
       </div>
     </Card>
+  );
+}
+
+// Helper Badge Component (since original was not imported)
+function Badge({ children, className }: any) {
+  return (
+    <span className={`px-2 py-0.5 rounded-md text-xs font-bold ${className}`}>
+      {children}
+    </span>
   );
 }

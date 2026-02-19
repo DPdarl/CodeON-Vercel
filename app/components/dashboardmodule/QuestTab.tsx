@@ -300,23 +300,23 @@ export function QuestTab() {
   }
 
   return (
-    <div className="fixed top-14 bottom-16 inset-x-0 z-0 flex flex-col bg-gray-950 lg:bg-transparent lg:static lg:h-[calc(100vh-140px)] lg:max-w-7xl lg:mx-auto font-pixelify">
+    <div className="fixed top-14 bottom-16 inset-x-0 z-0 flex flex-col bg-gray-50 dark:bg-gray-950 lg:bg-transparent lg:static lg:h-[calc(100vh-140px)] lg:max-w-7xl lg:mx-auto font-pixelify">
       {/* 1. TOP HEADER (Progress) */}
-      <div className="flex-none bg-gray-900 text-white lg:rounded-t-3xl p-4 sm:p-6 shadow-xl border border-gray-800 z-10">
+      <div className="flex-none bg-white dark:bg-gray-900 text-gray-900 dark:text-white lg:rounded-t-3xl p-4 sm:p-6 shadow-sm dark:shadow-xl border-b border-gray-200 dark:border-gray-800 z-10">
         <div className="flex justify-between items-center mb-2">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-yellow-500/20 rounded-lg">
-              <ScrollQuestIcon className="w-6 h-6 text-yellow-400" />
+            <div className="p-2 bg-yellow-100 dark:bg-yellow-500/20 rounded-lg">
+              <ScrollQuestIcon className="w-6 h-6 text-yellow-600 dark:text-yellow-400" />
             </div>
             <div>
               <h2 className="text-xl font-bold">Quests </h2>
-              <p className="text-xs text-gray-400">
+              <p className="text-xs text-gray-500 dark:text-gray-400">
                 Master the code to unlock rewards
               </p>
             </div>
           </div>
           <div className="text-right">
-            <span className="text-2xl font-bold text-yellow-400">
+            <span className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">
               {completedQuests}
             </span>
             <span className="text-sm text-gray-500"> / {totalQuests}</span>
@@ -324,9 +324,9 @@ export function QuestTab() {
         </div>
 
         {/* Progress Bar */}
-        <div className="relative h-4 bg-gray-800 rounded-full overflow-hidden border border-gray-700">
+        <div className="relative h-4 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden border border-gray-200 dark:border-gray-700">
           <motion.div
-            className="absolute top-0 left-0 h-full bg-gradient-to-r from-yellow-600 to-yellow-400"
+            className="absolute top-0 left-0 h-full bg-gradient-to-r from-yellow-500 to-yellow-400"
             initial={{ width: 0 }}
             animate={{ width: `${progressPercentage}%` }}
             transition={{ duration: 1 }}
@@ -337,7 +337,7 @@ export function QuestTab() {
       {/* --- MOBILE VIEW (< lg) --- */}
       <div className="flex-1 flex flex-col lg:hidden min-h-0 relative">
         {/* 2. SCROLLABLE LIST */}
-        <div className="flex-1 overflow-y-auto bg-gray-100 dark:bg-gray-950 p-4 pt-4 pb-24 space-y-3 custom-scrollbar border-x border-gray-200 dark:border-gray-800">
+        <div className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-950 p-4 pt-4 pb-24 space-y-3 custom-scrollbar">
           {switching ? (
             <QuestListSkeleton />
           ) : (
@@ -363,13 +363,14 @@ export function QuestTab() {
 
         {/* 3. BOTTOM TABS (Floating Pill) */}
         <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-30 w-auto max-w-[90%]">
-          <div className="flex items-center gap-1.5 p-1.5 bg-gray-900/90 backdrop-blur-xl border border-white/10 shadow-2xl rounded-full">
+          <div className="flex items-center gap-1.5 p-1.5 bg-white/90 dark:bg-gray-900/90 backdrop-blur-xl border border-gray-200 dark:border-white/10 shadow-xl dark:shadow-2xl rounded-full">
             <CategoryTab
               label="Bronze"
               isActive={activeCategory === "Bronze"}
               onClick={() => handleCategorySwitch("Bronze")}
-              color="bg-orange-600"
-              textColor="text-orange-50"
+              color="bg-orange-100 dark:bg-orange-600"
+              textColor="text-orange-700 dark:text-orange-50"
+              borderColor="border-orange-200 dark:border-orange-500"
               notificationCount={
                 quests.filter(
                   (q) =>
@@ -381,8 +382,9 @@ export function QuestTab() {
               label="Silver"
               isActive={activeCategory === "Silver"}
               onClick={() => handleCategorySwitch("Silver")}
-              color="bg-slate-400"
-              textColor="text-slate-900"
+              color="bg-slate-100 dark:bg-slate-400"
+              textColor="text-slate-700 dark:text-slate-900"
+              borderColor="border-slate-200 dark:border-slate-400"
               notificationCount={
                 quests.filter(
                   (q) =>
@@ -394,8 +396,9 @@ export function QuestTab() {
               label="Gold"
               isActive={activeCategory === "Gold"}
               onClick={() => handleCategorySwitch("Gold")}
-              color="bg-yellow-500"
-              textColor="text-yellow-950"
+              color="bg-yellow-100 dark:bg-yellow-500"
+              textColor="text-yellow-800 dark:text-yellow-950"
+              borderColor="border-yellow-200 dark:border-yellow-500"
               notificationCount={
                 quests.filter(
                   (q) => q.category === "Gold" && q.status === "ready-to-claim",
@@ -409,7 +412,7 @@ export function QuestTab() {
       {/* --- DESKTOP VIEW (>= lg) --- */}
       <div className="hidden lg:flex flex-col flex-1 h-full min-h-0 bg-transparent relative">
         {/* Connected Container (Full Width, connecting to header) */}
-        <div className="w-full h-full flex flex-col relative bg-gray-900/50 backdrop-blur-md rounded-b-3xl border-x border-b border-gray-800 shadow-2xl overflow-hidden">
+        <div className="w-full h-full flex flex-col relative bg-white/50 dark:bg-gray-900/50 backdrop-blur-md rounded-b-3xl border-x border-b border-gray-200 dark:border-gray-800 shadow-2xl overflow-hidden">
           {/* Scrollable List Area (Centered Content) */}
           <div className="flex-1 overflow-y-auto custom-scrollbar p-6 pb-40">
             <div className="max-w-4xl mx-auto space-y-4">
@@ -441,13 +444,14 @@ export function QuestTab() {
 
           {/* Floating Tabs (Desktop Sized & Positioned) */}
           <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-30">
-            <div className="flex items-center gap-2 p-2 bg-gray-950/80 backdrop-blur-xl border border-white/10 shadow-2xl rounded-full scale-110 origin-bottom hover:scale-115 transition-transform duration-300">
+            <div className="flex items-center gap-2 p-2 bg-white/90 dark:bg-gray-950/80 backdrop-blur-xl border border-gray-200 dark:border-white/10 shadow-2xl rounded-full scale-110 origin-bottom hover:scale-115 transition-transform duration-300">
               <CategoryTab
                 label="Bronze"
                 isActive={activeCategory === "Bronze"}
                 onClick={() => handleCategorySwitch("Bronze")}
-                color="bg-orange-600"
-                textColor="text-orange-50"
+                color="bg-orange-100 dark:bg-orange-600"
+                textColor="text-orange-700 dark:text-orange-50"
+                borderColor="border-orange-200 dark:border-orange-500"
                 notificationCount={
                   quests.filter(
                     (q) =>
@@ -459,8 +463,9 @@ export function QuestTab() {
                 label="Silver"
                 isActive={activeCategory === "Silver"}
                 onClick={() => handleCategorySwitch("Silver")}
-                color="bg-slate-400"
-                textColor="text-slate-900"
+                color="bg-slate-100 dark:bg-slate-400"
+                textColor="text-slate-700 dark:text-slate-900"
+                borderColor="border-slate-200 dark:border-slate-400"
                 notificationCount={
                   quests.filter(
                     (q) =>
@@ -472,8 +477,9 @@ export function QuestTab() {
                 label="Gold"
                 isActive={activeCategory === "Gold"}
                 onClick={() => handleCategorySwitch("Gold")}
-                color="bg-yellow-500"
-                textColor="text-yellow-950"
+                color="bg-yellow-100 dark:bg-yellow-500"
+                textColor="text-yellow-800 dark:text-yellow-950"
+                borderColor="border-yellow-200 dark:border-yellow-500"
                 notificationCount={
                   quests.filter(
                     (q) =>
@@ -756,6 +762,7 @@ function CategoryTab({
   onClick,
   color,
   textColor,
+  borderColor,
   notificationCount = 0,
 }: any) {
   return (
@@ -764,8 +771,10 @@ function CategoryTab({
       className={cn(
         "flex-1 py-2 px-4 rounded-full font-bold text-sm transition-all border-b-4 active:border-b-0 active:translate-y-1 relative",
         isActive
-          ? `${color} ${textColor} border-black/20 shadow-lg scale-105 ring-2 ring-offset-2 ring-transparent`
-          : "bg-transparent text-gray-400 border-transparent hover:bg-white/5",
+          ? `${color} ${textColor} ${
+              borderColor || "border-black/20"
+            } shadow-lg scale-105 ring-2 ring-offset-2 ring-offset-white dark:ring-offset-gray-950 ring-transparent`
+          : "bg-transparent text-gray-500 dark:text-gray-400 border-transparent hover:bg-black/5 dark:hover:bg-white/5",
       )}
     >
       {label}

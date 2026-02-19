@@ -55,12 +55,6 @@ export const ExitConfirmationModal = ({
             </div>
 
             {/* Close Button */}
-            <button
-              onClick={onCancel}
-              className="absolute top-4 right-4 text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
-            >
-              <X size={20} />
-            </button>
           </motion.div>
         </div>
       )}

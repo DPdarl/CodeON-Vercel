@@ -7,6 +7,7 @@ import {
   Zap,
   Sparkles,
   Compass,
+  CheckCircle2,
 } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import { Progress } from "~/components/ui/progress";
@@ -368,143 +369,136 @@ export function HomeTab({ onTabChange, isActive = true }: HomeTabProps) {
       </motion.div>
 
       {/* --- Practice Arena Carousel --- */}
+      {/* --- Practice Arena Carousel --- */}
       <motion.div
         variants={containerVariants}
         initial="hidden"
         animate="visible"
         className="space-y-4 pt-2"
       >
-        <div className="flex justify-between items-end px-2">
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-              <Code2 className="w-6 h-6 text-indigo-500" />
-              {/* Module Title Logic */}
-              {(() => {
-                // Find active module
-                let activeModule = MODULES[0];
-                for (const mod of MODULES) {
-                  const modChallenges = challenges.filter(
-                    (c) => c.moduleId === mod.id,
-                  );
-                  const isComplete = modChallenges.every((c) =>
-                    completedMachineProblems.includes(c.id),
-                  );
-                  if (!isComplete) {
-                    activeModule = mod;
-                    break;
-                  }
-                  activeModule = mod; // Keep updating to last if all complete so far
-                }
+        {(() => {
+          // --- CENTRALIZED MODULE SELECTION LOGIC ---
+          let activeModule = MODULES[0];
+          let isModuleCompleted = false;
 
-                // Get challenges for this module to find range
-                const modChallenges = challenges.filter(
-                  (c) => c.moduleId === activeModule.id,
-                );
-                const firstId =
-                  modChallenges.length > 0 ? modChallenges[0].id : "?";
-                const lastId =
-                  modChallenges.length > 0
-                    ? modChallenges[modChallenges.length - 1].id
-                    : "?";
+          for (const mod of MODULES) {
+            const modChallenges = challenges.filter(
+              (c) => c.moduleId === mod.id,
+            );
 
-                return (
-                  <span className="flex items-center gap-2 text-xl font-bold">
-                    <span className="text-gray-900 dark:text-white">
-                      Module {activeModule.id} : {activeModule.title}
+            // Skip empty modules
+            if (modChallenges.length === 0) {
+              continue;
+            }
+
+            activeModule = mod;
+            const allDone = modChallenges.every((c) =>
+              completedMachineProblems.includes(c.id),
+            );
+
+            if (!allDone) {
+              isModuleCompleted = false;
+              break; // Found the current active module
+            } else {
+              isModuleCompleted = true; // This module is done, continue checking next
+            }
+          }
+
+          // If we went through all modules and the last one with content is also completed:
+          // activeModule is the last non-empty module, and isModuleCompleted is true.
+
+          const activeChallenges = challenges.filter(
+            (c) => c.moduleId === activeModule.id,
+          );
+          const firstId =
+            activeChallenges.length > 0 ? activeChallenges[0].id : "?";
+          const lastId =
+            activeChallenges.length > 0
+              ? activeChallenges[activeChallenges.length - 1].id
+              : "?";
+
+          const completedCount = activeChallenges.filter((c) =>
+            completedMachineProblems.includes(c.id),
+          ).length;
+          const totalCount = activeChallenges.length;
+          const percentage =
+            totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
+
+          return (
+            <>
+              <div className="flex justify-between items-end px-2">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                    <Code2 className="w-6 h-6 text-indigo-500" />
+                    <span className="flex items-center gap-2 text-xl font-bold">
+                      <span className="text-gray-900 dark:text-white">
+                        Module {activeModule.id} : {activeModule.title}
+                      </span>
+                      <span className="text-gray-500 text-base font-normal">
+                        ({firstId} - {lastId})
+                      </span>
                     </span>
-                    <span className="text-gray-500 text-base font-normal">
-                      ({firstId} - {lastId})
-                    </span>
-                  </span>
-                );
-              })()}
-            </h2>
+                  </h2>
 
-            {/* Progress Bar Logic */}
-            <div className="mt-3 max-w-lg">
-              {(() => {
-                let activeModule = MODULES[0];
-                for (const mod of MODULES) {
-                  const modChallenges = challenges.filter(
-                    (c) => c.moduleId === mod.id,
-                  );
-                  if (
-                    !modChallenges.every((c) =>
-                      completedMachineProblems.includes(c.id),
-                    )
-                  ) {
-                    activeModule = mod;
-                    break;
-                  }
-                  activeModule = mod;
-                }
-                const modChallenges = challenges.filter(
-                  (c) => c.moduleId === activeModule.id,
-                );
-                const completedCount = modChallenges.filter((c) =>
-                  completedMachineProblems.includes(c.id),
-                ).length;
-                const total = modChallenges.length;
-                const percent = total > 0 ? (completedCount / total) * 100 : 0;
-
-                return (
-                  <div className="flex items-center gap-3">
-                    <div className="flex-1 h-2 bg-gray-800/50 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-blue-500 rounded-full transition-all duration-500"
-                        style={{ width: `${percent}%` }}
-                      />
+                  {/* Progress Bar */}
+                  <div className="mt-3 max-w-lg min-w-[200px]">
+                    <div className="flex items-center gap-3">
+                      <div className="flex-1 h-2 bg-gray-200 dark:bg-gray-800 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-blue-500 rounded-full transition-all duration-500"
+                          style={{ width: `${percentage}%` }}
+                        />
+                      </div>
+                      <span className="text-xs text-gray-500 font-mono font-bold">
+                        {Math.round(percentage)}%
+                      </span>
                     </div>
-                    <span className="text-xs text-gray-500 font-mono font-bold">
-                      {Math.round(percent)}%
-                    </span>
                   </div>
-                );
-              })()}
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white dark:bg-[#050510] rounded-[2rem] p-6 border border-gray-200 dark:border-gray-800 shadow-xl relative overflow-hidden transition-colors duration-300">
-          {/* Subtle Glow */}
-          <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-50 dark:bg-indigo-900/10 rounded-full blur-[100px] -mr-32 -mt-32 pointer-events-none" />
-
-          <div className="relative z-10">
-            {challenges.length > 0 ? (
-              <SelectionCarousel
-                challenges={(() => {
-                  // Filter challenges to CURRENT MODULE only
-                  let activeModule = MODULES[0];
-                  for (const mod of MODULES) {
-                    const modChallenges = challenges.filter(
-                      (c) => c.moduleId === mod.id,
-                    );
-                    if (
-                      !modChallenges.every((c) =>
-                        completedMachineProblems.includes(c.id),
-                      )
-                    ) {
-                      activeModule = mod;
-                      break;
-                    }
-                    activeModule = mod;
-                  }
-                  return challenges.filter(
-                    (c) => c.moduleId === activeModule.id,
-                  );
-                })()}
-                onSelectChallenge={handleSelectChallenge}
-                completedChallenges={completedMachineProblems}
-              />
-            ) : (
-              <div className="text-center py-20 rounded-xl border border-dashed border-gray-300 dark:border-gray-700">
-                <p className="text-gray-500 text-lg">
-                  No challenges found in the database.
-                </p>
+                </div>
               </div>
-            )}
-          </div>
-        </div>
+
+              <div className="bg-white dark:bg-[#050510] rounded-[2rem] p-6 border border-gray-200 dark:border-gray-800 shadow-xl relative overflow-hidden transition-colors duration-300">
+                {/* Subtle Glow */}
+                <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-50 dark:bg-indigo-900/10 rounded-full blur-[100px] -mr-32 -mt-32 pointer-events-none" />
+
+                <div className="relative z-10">
+                  {isModuleCompleted ? (
+                    <div className="text-center py-12 md:py-16">
+                      <div className="inline-flex p-4 rounded-full bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 mb-6 ring-4 ring-green-50 dark:ring-green-900/10">
+                        <CheckCircle2 className="w-12 h-12" />
+                      </div>
+                      <h3 className="text-3xl font-black text-gray-900 dark:text-white mb-3">
+                        Module Completed!
+                      </h3>
+                      <p className="text-gray-500 dark:text-gray-400 max-w-md mx-auto mb-8">
+                        You have successfully finished all challenges in this
+                        module. Great job!
+                      </p>
+                      <Button
+                        onClick={() => navigate("/play/challenges")}
+                        className="h-12 px-8 rounded-xl font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg active:scale-95 transition-all"
+                      >
+                        Review Challenges
+                      </Button>
+                    </div>
+                  ) : challenges.length > 0 ? (
+                    <SelectionCarousel
+                      challenges={activeChallenges}
+                      onSelectChallenge={handleSelectChallenge}
+                      completedChallenges={completedMachineProblems}
+                    />
+                  ) : (
+                    <div className="text-center py-20 rounded-xl border border-dashed border-gray-300 dark:border-gray-700">
+                      <p className="text-gray-500 text-lg">
+                        No challenges found in the database.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </>
+          );
+        })()}
       </motion.div>
     </div>
   );

@@ -617,7 +617,8 @@ export const ChallengeProvider = ({
     const processPattern =
       /[\+\-\*\/%]|Math\.|\bif\s*\(|\bswitch\b|\bfor\b|\bforeach\b|\bwhile\b|\bdo\b/;
 
-    if (!processPattern.test(cleanCode)) {
+    // Skip heuristic for MP 1.7 (Type Casting) as it uses Convert/Casting instead of operators
+    if (currentChallenge.id !== "1.7" && !processPattern.test(cleanCode)) {
       const failResult = {
         correct: false,
         stars: 0,
@@ -767,6 +768,179 @@ export const ChallengeProvider = ({
       // So we MUST generate expected output.
     }
 
+    // --- Challenge 1.7 Specific Checks (Type Casting) ---
+    if (currentChallenge.id === "1.7") {
+      const clean = cleanCode;
+      // Check for Convert.ToInt32 OR (int) cast
+      // We match: Convert.ToInt32, (int), (int )
+      const hasConvert = /Convert\.ToInt32/.test(clean);
+      const hasCast = /\(int\)/.test(clean);
+
+      if (!hasConvert && !hasCast) {
+        const feedbackMsg =
+          "Missing Type Conversion: You need to use `Convert.ToInt32()` or `(int)` casting.";
+        setState((prev) => ({
+          ...prev,
+          output:
+            prev.output +
+            "\n❌ MISSING TYPE CONVERSION\n----------------------------\n" +
+            "You have the Input, but you didn't convert the type correctly.\n" +
+            "Your code needs to explicitly convert the double to an int.\n" +
+            "💡 Tip: Use `Convert.ToInt32(val)` or cast with `(int)val`.\n",
+        }));
+        return {
+          correct: false,
+          stars: 0,
+          feedback: feedbackMsg,
+          executionTimeMs: 0,
+        };
+      }
+    }
+
+    // --- Challenge 1.8 Specific Checks (Tax Calculator) ---
+    if (currentChallenge.id === "1.8") {
+      const clean = cleanCode;
+      // Formula: Price * (Rate / 100)
+      // We check for multiplication and either division by 100 OR multiplication by 0.xx
+      // But the problem asks to input Tax Rate (e.g. 12), so division by 100 is most likely.
+      const hasTaxCalc = /(\*.*\/.*100)|(\/.*100.*\*)/.test(clean);
+
+      if (!hasTaxCalc) {
+        const feedbackMsg =
+          "Missing Tax Formula: Remember Tax Amount = Price * (Rate / 100).";
+        setState((prev) => ({
+          ...prev,
+          output:
+            prev.output +
+            "\n❌ MISSING TAX FORMULA\n----------------------------\n" +
+            "You have the inputs, but the tax calculation is missing.\n" +
+            "You need to calculate how much tax to add.\n" +
+            "💡 Tip: Tax = Price * (Rate / 100).\n",
+        }));
+        return {
+          correct: false,
+          stars: 0,
+          feedback: feedbackMsg,
+          executionTimeMs: 0,
+        };
+      }
+
+      // Check for Total addition
+      // Total = Price + Tax
+      if (!/\+/.test(clean)) {
+        const feedbackMsg =
+          "Missing Total Formula: Remember Total = Price + Tax Amount.";
+        setState((prev) => ({
+          ...prev,
+          output:
+            prev.output +
+            "\n❌ MISSING TOTAL FORMULA\n----------------------------\n" +
+            "You calculated the tax, but didn't add it to the price.\n" +
+            "The final price must include the tax.\n" +
+            "💡 Tip: Total = Price + Tax.\n",
+        }));
+        return {
+          correct: false,
+          stars: 0,
+          feedback: feedbackMsg,
+          executionTimeMs: 0,
+        };
+      }
+    }
+
+    // --- Challenge 1.9 Specific Checks (EOQ) ---
+    if (currentChallenge.id === "1.9") {
+      const clean = cleanCode;
+      // EOQ = sqrt((2 * D * S) / H)
+
+      if (!/Math\.Sqrt/.test(clean)) {
+        const feedbackMsg =
+          "Missing Square Root: The formula requires `Math.Sqrt()`.";
+        setState((prev) => ({
+          ...prev,
+          output:
+            prev.output +
+            "\n❌ MISSING SQUARE ROOT\n----------------------------\n" +
+            "The EOQ formula involves a square root, but I don't see it.\n" +
+            "You cannot solve this without square root.\n" +
+            "💡 Tip: Use `Math.Sqrt(...)`.\n",
+        }));
+        return {
+          correct: false,
+          stars: 0,
+          feedback: feedbackMsg,
+          executionTimeMs: 0,
+        };
+      }
+
+      // Check for the core structure: 2 * D * S
+      if (!/2\s*\*/.test(clean)) {
+        const feedbackMsg =
+          "Missing Formula Structure: Numerator is (2 * Demand * OrderCost).";
+        setState((prev) => ({
+          ...prev,
+          output:
+            prev.output +
+            "\n❌ MISSING FORMULA STRUCTURE\n----------------------------\n" +
+            "The internal part of the EOQ formula seems incomplete.\n" +
+            "Make sure you are following the standard formula.\n" +
+            "💡 Tip: Start with constants: 2 * Demand * OrderCost.\n",
+        }));
+        return {
+          correct: false,
+          stars: 0,
+          feedback: feedbackMsg,
+          executionTimeMs: 0,
+        };
+      }
+    }
+
+    // --- Challenge 1.10 Specific Checks (Area to Radius) ---
+    if (currentChallenge.id === "1.10") {
+      const clean = cleanCode;
+      // r = sqrt(Area / PI)
+
+      if (!/Math\.Sqrt/.test(clean)) {
+        const feedbackMsg =
+          "Missing Square Root: To find the radius from area, you need `Math.Sqrt()`.";
+        setState((prev) => ({
+          ...prev,
+          output:
+            prev.output +
+            "\n❌ MISSING SQUARE ROOT\n----------------------------\n" +
+            "To go from Area back to Radius, you need to take the square root.\n" +
+            "Your code is missing this step.\n" +
+            "💡 Tip: Use `Math.Sqrt(...)`.\n",
+        }));
+        return {
+          correct: false,
+          stars: 0,
+          feedback: feedbackMsg,
+          executionTimeMs: 0,
+        };
+      }
+
+      if (!/Math\.PI/.test(clean)) {
+        const feedbackMsg =
+          "Missing PI: Use `Math.PI` for the most accurate value of π.";
+        setState((prev) => ({
+          ...prev,
+          output:
+            prev.output +
+            "\n❌ MISSING PI constant\n----------------------------\n" +
+            "The area of a circle involves PI (3.14159...).\n" +
+            "Please use the built-in Math constant.\n" +
+            "💡 Tip: Use `Math.PI`.\n",
+        }));
+        return {
+          correct: false,
+          stars: 0,
+          feedback: feedbackMsg,
+          executionTimeMs: 0,
+        };
+      }
+    }
+
     // [New] Clear terminal before verify to show fresh results?
     // Actually the "Verifying solution..." is already there. Let's keep it.
 
@@ -833,7 +1007,49 @@ export const ChallengeProvider = ({
               expectedOutput = `Result: ${val} USD = ${r} PHP`;
             }
           }
-        } else if (currentChallenge.runner) {
+        }
+        // [NEW] Custom Generator for MP 1.4 (Unit Converter)
+        else if (currentChallenge.id === "1.4") {
+          const lines = inputVal.split("\n");
+          const choice = lines[0]?.trim();
+          const val = parseFloat(lines[1] || "0");
+
+          const usesSwitch = /\bswitch\b/.test(code);
+          const r2 = (n: number) => Math.round(n * 100) / 100;
+
+          // Factors
+          // 1. m->ft: 3.28084
+          // 2. kg->lbs: 2.20462
+          // 3. l->gal: 0.264172
+
+          if (choice === "1") {
+            // m -> ft
+            const res = val * 3.28084;
+            if (usesSwitch) {
+              expectedOutput = `Result: ${val} m = ${res.toFixed(2)} ft`;
+            } else {
+              expectedOutput = `Result: ${val} m = ${r2(res)} ft`;
+            }
+          } else if (choice === "2") {
+            // kg -> lbs
+            const res = val * 2.20462;
+            if (usesSwitch) {
+              expectedOutput = `Result: ${val} kg = ${res.toFixed(2)} lbs`;
+            } else {
+              expectedOutput = `Result: ${val} kg = ${r2(res)} lbs`;
+            }
+          } else if (choice === "3") {
+            // L -> gal
+            const res = val * 0.264172;
+            if (usesSwitch) {
+              expectedOutput = `Result: ${val} L = ${res.toFixed(2)} gal`;
+            } else {
+              expectedOutput = `Result: ${val} L = ${r2(res)} gal`;
+            }
+          }
+        }
+        // [NEW] Custom Generator for MP 1.7 (Type Casting)
+        else if (currentChallenge.runner) {
           const inputLines = inputVal.split("\n");
           let inputIdx = 0;
           await currentChallenge.runner(
@@ -859,6 +1075,42 @@ export const ChallengeProvider = ({
         // 3. Compare
         // Normalize: remove extra whitespace, newlines, case-insensitiveish?
         const normUser = (result.stdout || "").replace(/\s+/g, " ").trim();
+
+        // [NEW] Late-binding Expected Output for MP 1.7 (Multiple valid answers)
+        if (currentChallenge.id === "1.7") {
+          const val = parseFloat(inputVal.trim());
+          const s1 = Math.round(val).toString();
+          const s2 = Math.floor(val).toString();
+          if (normUser.includes(s1)) expectedOutput = s1;
+          else if (normUser.includes(s2)) expectedOutput = s2;
+          else expectedOutput = `${s1} or ${s2}`; // Will fail comparison
+        }
+
+        // [NEW] Late-binding Expected Output for MP 1.10 (Negative Area Check)
+        if (currentChallenge.id === "1.10") {
+          const area = parseFloat(inputVal.trim());
+          if (area < 0) {
+            // Option 1: Error message
+            const errorMsg = "Error: Negative Area";
+            // Option 2: Radius using Abs
+            const radius = Math.sqrt(Math.abs(area) / Math.PI);
+            const radiusMsg = "Radius: " + radius.toFixed(2);
+            const radiusMsg2 = "Radius: " + Math.round(radius * 100) / 100; // Handle simple math.round logic?
+
+            // Check which one user output contains
+            if (normUser.includes("Error") || normUser.includes("Negative")) {
+              expectedOutput = errorMsg;
+            } else if (
+              normUser.includes(radius.toFixed(2)) ||
+              normUser.includes(radiusMsg2.toString())
+            ) {
+              expectedOutput = radiusMsg; // or just the number? check includes above
+            } else {
+              expectedOutput = `${errorMsg} OR ${radiusMsg}`;
+            }
+          }
+        }
+
         const normExpected = expectedOutput.replace(/\s+/g, " ").trim();
 
         // [New] Log the test execution to the terminal for visibility

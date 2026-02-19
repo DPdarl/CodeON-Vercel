@@ -153,8 +153,8 @@ export function MobileNavBar({
 
   return (
     <>
-      <div className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 z-50 px-2 pb-2 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
-        <div className="flex justify-around items-center h-full relative">
+      <div className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 z-50 px-0 pb-2 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
+        <div className="grid grid-cols-5 h-full relative items-center">
           {/* --- 1. PRIMARY ITEMS (Home, Play, etc.) --- */}
           {primaryItems.map((item) => {
             const Icon = item.icon;
@@ -163,7 +163,7 @@ export function MobileNavBar({
               <button
                 key={item.id}
                 onClick={() => onTabChange(item.id)}
-                className="flex-1 flex flex-col items-center justify-center gap-1 h-full py-1 active:scale-95 transition-transform"
+                className="flex flex-col items-center justify-center gap-1 h-full py-1 active:scale-95 transition-transform"
               >
                 <div
                   className={cn(
@@ -192,10 +192,13 @@ export function MobileNavBar({
           })}
 
           {/* --- 2. MENU BUTTON (The 5th Element) --- */}
-          <div className="relative" ref={menuRef}>
+          <div
+            className="relative h-full flex items-center justify-center"
+            ref={menuRef}
+          >
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="flex-1 flex flex-col items-center justify-center gap-1 h-full py-1 active:scale-95 transition-transform px-4"
+              className="flex flex-col items-center justify-center gap-1 h-full py-1 active:scale-95 transition-transform w-full"
             >
               <div
                 className={cn(

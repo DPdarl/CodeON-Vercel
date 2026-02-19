@@ -132,10 +132,13 @@ const MachineProblemContent = () => {
   const { user } = useAuth(); // Get user
   const navigate = useNavigate();
 
-  // Navigation Blocker
+  // Navigation Blocker: Block if NOT exiting, route changing, AND challenge NOT completed
   const blocker = useBlocker(
     ({ currentLocation, nextLocation }) =>
-      !isExiting && currentLocation.pathname !== nextLocation.pathname,
+      !isExiting &&
+      currentLocation.pathname !== nextLocation.pathname &&
+      currentChallenge &&
+      !completed.includes(currentChallenge.id),
   );
 
   const isLastChallenge = currentChallenge
